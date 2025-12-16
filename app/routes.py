@@ -1,4 +1,4 @@
-import utils
+import app.utils
 from app.oauth2 import create_access_token
 from app.decorators import login_required, require_api_key
 from app.extension import limiter
