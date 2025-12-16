@@ -26,12 +26,12 @@ def init_error_handlers(app):
             "message": "The requested resource does not exist."
         }), 404
 
-    @app.errorhandler(400)  # Bad request
-    def bad_request_handler(e):
-        return jsonify({
-            "error": "Bad request",
-            "message": str(e.description if hasattr(e, 'description') else e)
-        }), 400
+    # @app.errorhandler(400)  # Bad request
+    # def bad_request_handler(e):
+    #     return jsonify({
+    #         "error": "Bad request",
+    #         "message": str(e.description if hasattr(e, 'description') else e)
+    #     }), 400
 
     @app.errorhandler(401)  # Unauthorized
     def unauthorized_handler(e):
