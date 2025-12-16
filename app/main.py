@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 
 from config import settings
 from routes import auth, expense
@@ -8,7 +9,7 @@ from errors import init_error_handlers
 
 def create_app():
     app = Flask(__name__)
-
+    CORS(app)
     # Bind the limiter to the app AFTER creation
     limiter.init_app(app)
 
