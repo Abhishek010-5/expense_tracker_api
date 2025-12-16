@@ -1,4 +1,4 @@
-import app.utils
+from app.utils import get_username_for_rate_limit
 from app.oauth2 import create_access_token
 from app.decorators import login_required, require_api_key
 from app.extension import limiter
@@ -12,7 +12,7 @@ auth = Blueprint("auth", __name__, url_prefix="/auth")
 @require_api_key
 @limiter.limit(
     "5 per 5 minutes, 25 per day",
-    key_func=utils.get_username_for_rate_limit, 
+    key_func= get_username_for_rate_limit, 
     error_message="Too many attempts for this account. Try again later."
 )
 def signin():
