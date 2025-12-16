@@ -102,6 +102,9 @@ def signup():
     if not request.json:
         return jsonify({"message": "request cannot be empty"}), 400
     user_data = request.get_json()
+    
+    if not user_data:
+        return jsonify({"message":"JSON required"}),400
 
     email = user_data.get("email")
     username = user_data.get("username")
