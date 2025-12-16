@@ -1,4 +1,4 @@
-from app.utils import get_username_for_rate_limit
+from app.utils import*
 from app.oauth2 import create_access_token
 from app.decorators import login_required, require_api_key
 from app.extension import limiter
@@ -32,7 +32,7 @@ def signin():
     if not email:
         return jsonify({"message": "Email cannot be empty"}), 400
 
-    if not utils.verify_user(email, password):
+    if not verify_user(email, password):
         return jsonify({"message": "Invalid credentials"}), 401
 
     try:
@@ -74,7 +74,7 @@ def reset_password(curr_user):
     if not old_password or not new_password:
         return jsonify({"message": "old and new password required"}), 400
 
-    if not utils.validate_password(new_password):
+    if not validate_password(new_password):
         return (
             jsonify(
                 {
@@ -87,10 +87,10 @@ def reset_password(curr_user):
     if not curr_user:
         return jsonify({"message": "Unable to process"}), 400
 
-    if not utils.verify_user(curr_user, old_password):
+    if not verify_user(curr_user, old_password):
         return jsonify({"message": "Password not matched"}), 404
 
-    if not utils.update_password(curr_user, new_password):
+    if not update_password(curr_user, new_password):
         return jsonify({"message": "Details not found"}), 404
 
     return jsonify({"message": "password updated"}), 200
@@ -110,20 +110,20 @@ def signup():
 
     if not all([email, username, password,otp]):
         return jsonify({"message": "All fields required"}), 400
-    if not utils.validate_email(email):
+    if not validate_email(email):
         return jsonify({"message": "Invalid email format"}), 400
-    if utils.user_exists(email):
+    if user_exists(email):
         return jsonify({"message":"users alredy exixts"}),400
-    if not utils.validate_password:
+    if not validate_password:
         return (
             {
                 "message": "Password must be 8+ chars with at least one uppercase, one lowercase, one digit, and one special character"
             }
         ), 400
-    if not utils.verify_user_otp(email,otp):
+    if not verify_user_otp(email,otp):
         return jsonify({"message":"Incorrect otp"}),400
 
-    if not utils.create_user(email, username, password):
+    if not create_user(email, username, password):
         return jsonify({"message": "error occured, Try somtime later"}), 500
     return jsonify({"message": "User created"}), 200
 
@@ -138,13 +138,13 @@ def forgot_password():
 
     if not email or not new_password:
         return jsonify({"message": "request must contain email or new password"}), 400
-    if not utils.validate_email(email):
+    if not validate_email(email):
         return jsonify({"message": "Invalid email format"}), 400
-    if not utils.validate_password(new_password):
+    if not validate_password(new_password):
         return jsonify({"message": "Invalid password format"}), 400
-    if not utils.user_exists(email):
+    if not user_exists(email):
         return jsonify({"message": "Invalid credentials"}), 404
-    if not utils.update_password(email, new_password):
+    if not update_password(email, new_password):
         return jsonify({"error": "Occured"}), 500
 
     return jsonify({"message": "password updated"}), 200
@@ -185,12 +185,12 @@ def send_otp():
 
     email = data.get("email")
 
-    if utils.validate_email(email):
+    if validate_email(email):
         return jsonify({"message": "invalid email format"}), 422
-    if not utils.user_exists(email):
+    if not user_exists(email):
         return jsonify({"message": "Unauthorized"}), 401
 
-    if not utils.send_otp(email):
+    if not send_otp(email):
         return jsonify({"message": "unable able to send otp, please try later"}), 500
     return jsonify({"message": "OPT snet"}), 200
 
@@ -263,7 +263,7 @@ def add_expense(curr_user):
         "payment_for": payment_for,
     }
 
-    if not utils.add_user_expense(expense_detail):
+    if not add_user_expense(expense_detail):
         return jsonify({"message": "An error occurred while adding expense"}), 500
 
     return jsonify({"message": "Expense added successfully"}), 200
@@ -273,7 +273,7 @@ def add_expense(curr_user):
 @require_api_key
 @login_required
 def get_expense(curr_user):
-    expenses = utils.get_user_expense(curr_user)
+    expenses = get_user_expense(curr_user)
 
     if expenses is None:
         return jsonify({"message": "Failed to retrieve expenses"}), 500
@@ -287,7 +287,7 @@ def get_expense(curr_user):
 @expense.route("/get_curr_year_expense", methods=["GET"])
 @login_required
 def get_curr_year_expense(curr_user):
-    expense = utils.get_user_curr_year_expense(curr_user)
+    expense = get_user_curr_year_expense(curr_user)
 
     if expense is None:
         return jsonify({"message": "Failed to retrieve expenses"}), 500
