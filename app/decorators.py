@@ -1,7 +1,7 @@
 from functools import wraps
 from flask import request, jsonify
 
-from oauth2 import verify_access_token
+from app.oauth2 import verify_access_token
 from app.config import settings
 
 

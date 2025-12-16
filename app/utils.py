@@ -3,13 +3,12 @@ import string
 
 import random
 import smtplib
-import random
 from datetime import datetime
 from email.message import EmailMessage
 
 from typing import List, Dict, Any
-from redisdb import connect_to_redis
-from database import get_db
+from app.redisdb import connect_to_redis
+from app.database import get_db
 
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging

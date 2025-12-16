@@ -2,9 +2,9 @@ from flask import Flask
 from flask_cors import CORS
 
 from app.config import settings
-from routes import auth, expense
-from extension import limiter
-from errors import init_error_handlers
+from app.routes import auth, expense
+from app.extension import limiter
+from app.errors import init_error_handlers
 
 
 def create_app():

@@ -1,7 +1,7 @@
 import utils
-from oauth2 import create_access_token
-from decorators import login_required, require_api_key
-from extension import limiter
+from app.oauth2 import create_access_token
+from app.decorators import login_required, require_api_key
+from app.extension import limiter
 
 from flask import jsonify, request, make_response, Blueprint
 from datetime import datetime
