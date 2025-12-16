@@ -1,5 +1,5 @@
 from jose import jwt, JWTError
-from config import settings
+from app.config import settings
 from datetime import datetime, timedelta
 
 SECRET_KEY =  settings.secret_key

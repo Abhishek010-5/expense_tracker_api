@@ -1,5 +1,5 @@
 from pymongo import MongoClient
-from config import settings
+from app.config import settings
 
 def get_db():
     try:

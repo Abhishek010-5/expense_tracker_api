@@ -13,7 +13,7 @@ from database import get_db
 
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
-from config import settings
+from app.config import settings
 from flask import request
 
 

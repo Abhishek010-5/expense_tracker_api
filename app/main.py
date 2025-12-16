@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_cors import CORS
 
-from config import settings
+from app.config import settings
 from routes import auth, expense
 from extension import limiter
 from errors import init_error_handlers

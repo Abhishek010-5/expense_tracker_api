@@ -1,5 +1,5 @@
 import redis
-from config import settings
+from app.config import settings
 def connect_to_redis():
     """Establish connection to Redis server with username and password."""
     try:

@@ -2,7 +2,7 @@ from functools import wraps
 from flask import request, jsonify
 
 from oauth2 import verify_access_token
-from config import settings
+from app.config import settings
 
 
 
