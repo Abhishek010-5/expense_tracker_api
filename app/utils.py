@@ -148,6 +148,7 @@ def verify_user_otp(email: str, entered_otp: str) -> bool:
         return True
     else:
         print(f"[FAILED] Invalid OTP for {email}")
+        print(stored_otp)
         return False
 
 

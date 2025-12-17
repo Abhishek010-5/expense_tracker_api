@@ -16,9 +16,6 @@ def create_app():
     # Now set global defaults (after init_app)
     limiter.default_limits = ["200 per day", "50 per hour"]
 
-    # Optional: storage for production redis://default:mysecretpassword@myredis.example.com:6379
-    limiter.storage_uri = f"redis://{settings.redis_username}:{settings.redis_password}@{settings.redis_host}:{settings.redis_port}"
-
     # Optional: headers
     limiter.headers_enabled = True
     
