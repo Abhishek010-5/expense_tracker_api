@@ -10,6 +10,7 @@ from typing import List, Dict, Any
 from app.redisdb import connect_to_redis
 from app.database import get_db
 
+import redis
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 from app.config import settings
@@ -114,12 +115,18 @@ def sendOtp(email: str, expiry_seconds: int = 300) -> bool:
     Generate and store OTP in Redis with expiry
     Returns the OTP (for testing or logging – never send in prod logs!)
     """
-    otp = generate_otp()
-    key = f"otp:{email}"
-    redis_client = connect_to_redis()
-    redis_client.setex(key, expiry_seconds, otp)
-    send_otp_to_user(email, otp)
-
+    try:
+        otp = generate_otp()
+        key = f"otp:{email}"
+        redis_client = connect_to_redis()
+        redis_client.setex(key, expiry_seconds, otp)
+        send_otp_to_user(email, otp)
+    except redis.RedisError as e:
+            print(f"Redis error for {email}: {e}")
+            return False
+    except Exception as e:
+        print(f"Failed to send OTP: {e}")
+        return False
     return True
 
 
