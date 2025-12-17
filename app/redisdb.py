@@ -6,10 +6,9 @@ def connect_to_redis():
         client = redis.Redis(
             host=settings.redis_host,
             port=settings.redis_port,
-            db=settings.redis_database,
+            decode_responses=True,
             username=settings.redis_username,  
             password=settings.redis_password,  
-            decode_responses=True
         )
         # Test connection
         client.ping()

@@ -119,7 +119,7 @@ def sendOtp(email: str, expiry_seconds: int = 300) -> bool:
         otp = generate_otp()
         key = f"otp:{email}"
         redis_client = connect_to_redis()
-        redis_client.setex(key, expiry_seconds, otp)
+        redis_client.set(key, expiry_seconds, otp)
         send_otp_to_user(email, otp)
     except redis.RedisError as e:
             print(f"Redis error for {email}: {e}")
