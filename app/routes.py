@@ -187,8 +187,11 @@ def send_otp():
         return jsonify({"message": "json should contain email"}), 400
 
     email = data.get("email")
+    
+    if not email:
+        return jsonify({"message":"email is required"}),400
 
-    if validate_email(email):
+    if not validate_email(email):
         return jsonify({"message": "invalid email format"}), 422
     if not user_exists(email):
         return jsonify({"message": "Unauthorized"}), 401
