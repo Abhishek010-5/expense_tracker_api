@@ -109,7 +109,7 @@ def send_otp_to_user(to_email: str, otp: str = None) -> str:
     return True
 
 
-def send_otp(email: str, expiry_seconds: int = 300) -> bool:
+def sendOtp(email: str, expiry_seconds: int = 300) -> bool:
     """
     Generate and store OTP in Redis with expiry
     Returns the OTP (for testing or logging – never send in prod logs!)

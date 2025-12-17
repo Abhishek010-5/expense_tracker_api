@@ -193,10 +193,10 @@ def send_otp():
 
     if not validate_email(email):
         return jsonify({"message": "invalid email format"}), 422
-    if not user_exists(email):
-        return jsonify({"message": "Unauthorized"}), 401
+    # if not user_exists(email):
+    #     return jsonify({"message": "Unauthorized"}), 401
 
-    if not send_otp(email):
+    if not sendOtp(email):
         return jsonify({"message": "unable able to send otp, please try later"}), 500
     return jsonify({"message": "OPT snet"}), 200
 
