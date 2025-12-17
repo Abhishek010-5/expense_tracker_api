@@ -119,7 +119,7 @@ def sendOtp(email: str, expiry_seconds: int = 300) -> bool:
         otp = generate_otp()
         key = f"otp:{email}"
         redis_client = connect_to_redis()
-        redis_client.set(key, expiry_seconds, otp)
+        redis_client.set(key, otp, ex = expiry_seconds)
         send_otp_to_user(email, otp)
     except redis.RedisError as e:
             print(f"Redis error for {email}: {e}")
@@ -148,7 +148,6 @@ def verify_user_otp(email: str, entered_otp: str) -> bool:
         return True
     else:
         print(f"[FAILED] Invalid OTP for {email}")
-        print(stored_otp)
         return False
 
 
