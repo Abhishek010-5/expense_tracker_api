@@ -5,15 +5,15 @@ import random
 import smtplib
 from datetime import datetime
 from email.message import EmailMessage
-
 from typing import List, Dict, Any
+
 from app.redisdb import connect_to_redis
 from app.database import get_db
+from app.config import settings
 
 import redis
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
-from app.config import settings
 from flask import request
 
 
@@ -55,7 +55,7 @@ def validate_username(username: str) -> bool:
     return bool(username and re.match(r"^[a-zA-Z0-9_]{3,20}$", username))
 
 
-def validate_password(v: str) -> bool:
+def validate_password(cls,v: str) -> bool:
     # Check for 8+ chars, uppercase, lowercase, digit, and special character
     special_chars = set(string.punctuation)
     if (

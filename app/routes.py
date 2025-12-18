@@ -2,8 +2,10 @@ from app.utils import*
 from app.oauth2 import create_access_token
 from app.decorators import login_required, require_api_key
 from app.extension import limiter
+from app.schemas import UserCredential, UserCreate
 
 from flask import jsonify, request, make_response, Blueprint
+from flask_pydantic import validate
 from datetime import datetime
 
 auth = Blueprint("auth", __name__, url_prefix="/auth")
@@ -15,36 +17,38 @@ auth = Blueprint("auth", __name__, url_prefix="/auth")
     key_func= get_username_for_rate_limit, 
     error_message="Too many attempts for this account. Try again later."
 )
-def signin():
-    if request.is_json:
-        data = request.get_json()
-    else:
-        data = request.form
+@validate(form=UserCredential)
+def signin(form:UserCredential):
+    
+    # if request.is_json:
+    #     data = request.get_json()
+    # else:
+        # data = request.form
 
-    data = request.form
-    email = data.get("email")
-    password = data.get("password")
+    # data = request.form
+    # email = data.get("email")
+    # password = data.get("password")
 
-    if not email or not password:
-        return jsonify({"message": "Email and password are required"}), 400
+    # if not email or not password:
+        # return jsonify({"message": "Email and password are required"}), 400
 
-    email = email.strip()
-    if not email:
-        return jsonify({"message": "Email cannot be empty"}), 400
+    # email = email.strip()
+    # if not email:
+        # return jsonify({"message": "Email cannot be empty"}), 400
 
-    if not verify_user(email, password):
+    if not verify_user(form.email, form.password):
         return jsonify({"message": "Invalid credentials"}), 401
 
     try:
         # Create JWT token (using Flask-JWT-Extended or PyJWT)
-        token = create_access_token({"user_id": email})
+        token = create_access_token({"user_id": form.email})
     except Exception as e:
         print(f"Token creation failed: {e}")
         return jsonify({"message": "Internal server error"}), 500
 
     # Create response
     resp = make_response(
-        jsonify({"message": "Login successful", "curr_user": email}), 200
+        jsonify({"message": "Login successful", "curr_user": form.email, "email":form.email}), 200
     )
 
     resp.set_cookie(
@@ -98,37 +102,38 @@ def reset_password(curr_user):
 
 @auth.route("/signup", methods=["POST"])
 @require_api_key
-def signup():
-    if not request.json:
-        return jsonify({"message": "request cannot be empty"}), 400
-    user_data = request.get_json()
+@validate(body=UserCreate)
+def signup(body:UserCreate):
+    # if not request.json:
+        # return jsonify({"message": "request cannot be empty"}), 400
+    # user_data = request.get_json()
     
-    if not user_data:
-        return jsonify({"message":"JSON required"}),400
+    # if not user_data:
+        # return jsonify({"message":"JSON required"}),400
 
-    email = user_data.get("email")
-    username = user_data.get("username")
-    password = user_data.get("password")
-    otp = user_data.get("otp")
+    # email = user_data.get("email")
+    # username = user_data.get("username")
+    # password = user_data.get("password")
+    # otp = user_data.get("otp")
 
-    if not all([email, username, password,otp]):
-        return jsonify({"message": "All fields required"}), 400
-    if not validate_email(email):
-        return jsonify({"message": "Invalid email format"}), 400
-    if user_exists(email):
+    # if not all([email, username, password,otp]):
+        # return jsonify({"message": "All fields required"}), 400
+    # if not validate_email(email):
+        # return jsonify({"message": "Invalid email format"}), 400
+    if user_exists(body.email):
         return jsonify({"message":"users alredy exixts"}),400
-    if not validate_password:
-        return (
-            {
-                "message": "Password must be 8+ chars with at least one uppercase, one lowercase, one digit, and one special character"
-            }
-        ), 400
-    if not verify_user_otp(email,otp):
+    # if not validate_password():
+        # return (
+            # {
+                # "message": "Password must be 8+ chars with at least one uppercase, one lowercase, one digit, and one special character"
+            # }
+        # ), 400
+    if not verify_user_otp(body.email,body.otp):
         return jsonify({"message":"Incorrect otp"}),400
 
-    if not create_user(email, username, password):
+    if not create_user(body.email, body.username, body.password):
         return jsonify({"message": "error occured, Try somtime later"}), 500
-    return jsonify({"message": "User created"}), 200
+    return jsonify({"message": f"User created, username:{body.username}, email:{body.email}"}), 200
 
 
 @auth.route("/forogt_password")
