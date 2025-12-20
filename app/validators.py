@@ -1,3 +1,5 @@
+import string
+
 def password_strength(cls, v:str):
     # Check for 8+ chars, uppercase, lowercase, digit, and special character
     special_chars = set(string.punctuation)
