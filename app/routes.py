@@ -130,7 +130,6 @@ def forgot_password(body:FogotPassword):
 
 
 @auth.route("/logout", methods=["POST"])
-@login_required
 def logout():
     resp = make_response(jsonify({"message": "Logged out successfully"}))
 
