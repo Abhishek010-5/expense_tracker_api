@@ -15,7 +15,7 @@ import redis
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 from flask import request
-from pydantic import field_validator
+from pydantic import field_validator, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -85,39 +85,18 @@ def validate_username(username: str) -> bool:
 
 def strong_password_validator(field_name: str = "password"):
     """
-    Factory function that returns a Pydantic field_validator
-    for enforcing strong password rules.
-    
-    Usage:
-        validate_password = strong_password_validator()
-        # or for a different field name:
-        validate_new_password = strong_password_validator("new_password")
+    Factory that returns a validator enforcing strong password rules using assert statements.
+    Pydantic automatically converts failed asserts into proper ValidationError entries.
     """
     special_chars = set(string.punctuation)
 
     @field_validator(field_name)
     @classmethod
     def _validate_password(cls, v: str) -> str:
-        if not isinstance(v, str):
-            raise ValueError("Password must be a string")
-
-        errors = []
-        if not any(c.isupper() for c in v):
-            errors.append("one uppercase letter")
-        if not any(c.islower() for c in v):
-            errors.append("one lowercase letter")
-        if not any(c.isdigit() for c in v):
-            errors.append("one digit")
-        if not any(c in special_chars for c in v):
-            errors.append("one special character")
-
-        if errors:
-            # Join with "and" for better readability on the last item
-            if len(errors) > 1:
-                errors[-1] = "and " + errors[-1]
-            message = ", ".join(errors)
-            raise ValueError(f"Password must contain {message}")
-
+        assert any(c.isupper() for c in v), "must contain at least one uppercase letter"
+        assert any(c.islower() for c in v), "must contain at least one lowercase letter"
+        assert any(c.isdigit() for c in v), "must contain at least one digit"
+        assert any(c in special_chars for c in v), "must contain at least one special character"
         return v
 
     return _validate_password
