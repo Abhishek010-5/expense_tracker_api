@@ -24,7 +24,7 @@ class UserCreate(BaseModel):
     password: str
     otp: str
 
-    _check_password_strength = field_validator("new_password")(password_strength)
+    _check_password_strength = field_validator("password")(password_strength)
     
 class UpdatePassword(BaseModel):
     new_password: str
