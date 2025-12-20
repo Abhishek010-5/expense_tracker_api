@@ -1,6 +1,6 @@
-from pydantic import BaseModel, EmailStr, Field, SecretStr
+from pydantic import BaseModel, EmailStr, Field, SecretStr, field_validator
 from typing import Annotated
-from validators import StrongPassword  
+from validators import password_strength
 
 Username = Annotated[
     str,
@@ -11,14 +11,6 @@ Username = Annotated[
     ),
 ]
 
-SecurePassword = Annotated[
-    StrongPassword,  # Inherits all strong password rules
-    Field(
-        min_length=8,
-        max_length=256,
-        description="Password must be 8-256 chars and include uppercase, lowercase, digit, and special char",
-    ),
-]
 
 
 class UserCredential(BaseModel):
@@ -29,17 +21,20 @@ class UserCredential(BaseModel):
 class UserCreate(BaseModel):
     username: Username
     email: EmailStr
-    password: SecurePassword
+    password: str
     otp: str
 
-
+    _check_password_strength = field_validator("new_password")(password_strength)
+    
 class UpdatePassword(BaseModel):
-    new_password: SecurePassword
+    new_password: str
     old_password: SecretStr
     
-
+    _check_password_strength = field_validator("new_password")(password_strength)
 
 class ForgotPassword(BaseModel):  
     email: EmailStr
-    new_password: SecurePassword
+    new_password: str
     otp: str  
+    
+    _check_password_strength = field_validator("new_password")(password_strength)

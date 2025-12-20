@@ -1,41 +1,12 @@
-import string
-from typing import Annotated
-from pydantic.functional_validators import AfterValidator
-from pydantic_core import PydanticCustomError
-
-
-def _strong_password_validator(v: str) -> str:
-    """
-    Validates that the password contains:
-    - At least one uppercase letter
-    - At least one lowercase letter
-    - At least one digit
-    - At least one special character from string.punctuation
-    """
-    if not any(c.isupper() for c in v):
-        raise PydanticCustomError(
-            "uppercase_missing",
-            "Password must contain at least one uppercase letter",
-        )
-
-    if not any(c.islower() for c in v):
-        raise PydanticCustomError(
-            "lowercase_missing",
-            "Password must contain at least one lowercase letter",
-        )
-
-    if not any(c.isdigit() for c in v):
-        raise PydanticCustomError(
-            "digit_missing",
-            "Password must contain at least one digit",
-        )
-
-    if not any(c in string.punctuation for c in v):
-        raise PydanticCustomError(
-            "special_missing",
-            "Password must contain at least one special character (!@#$%^&* etc.)",
-        )
-
+def password_strength(cls, v:str):
+    # Check for 8+ chars, uppercase, lowercase, digit, and special character
+    special_chars = set(string.punctuation)
+    if (
+        len(v) < 8 or
+        not any(c.isupper() for c in v) or
+        not any(c.islower() for c in v) or  
+        not any(c.isdigit() for c in v) or
+        not any(c in special_chars for c in v)
+    ):
+        raise ValueError("Password must be 8+ chars with at least one uppercase, one lowercase, one digit, and one special character")
     return v
-
-StrongPassword = Annotated[str, AfterValidator(_strong_password_validator)]
