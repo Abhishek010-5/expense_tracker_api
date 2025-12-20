@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field, SecretStr, field_validator
 from typing import Annotated
-from validators import password_strength
+from app.validators import password_strength
 
 Username = Annotated[
     str,
