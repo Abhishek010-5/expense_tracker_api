@@ -5,7 +5,7 @@ import random
 import smtplib
 from datetime import datetime
 from email.message import EmailMessage
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from app.redisdb import connect_to_redis
 from app.database import get_db
@@ -15,37 +15,66 @@ import redis
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 from flask import request
+from pydantic import field_validator
 
+logger = logging.getLogger(__name__)
 
 # Function for hasing
 
 
-def encrypt_password(password: str) -> str:
+def encrypt_password(password: str) -> Optional[str]:
     """
     Securely hash a password using PBKDF2 with HMAC-SHA256 (default and recommended).
 
     Args:
-        password (str): Plain text password
+        password (str): Plain text password (guaranteed to be non-empty str by route validation).
 
     Returns:
-        str: Hashed password (as string)
-    """
-    return generate_password_hash(password)
+        str | None: Hashed password on success, None if hashing fails (error logged).
 
+    Note:
+        Any errors during hashing are logged but not raised — caller should check for None.
+    """
+    try:
+        hashed = generate_password_hash(password)
+        return hashed
+
+    except ValueError as e:
+        # This can happen if somehow an invalid method is passed (unlikely with default usage)
+        logger.error("ValueError during password hashing: %s", e)
+        return None
+
+    except Exception as e:
+        # Catch-all for unexpected issues (e.g., crypto backend problems)
+        logger.exception("Unexpected error while hashing password: %s", e)
+        return None
 
 def verify_password(stored_hash: str, password: str) -> bool:
     """
-    Verify a password against a stored hash.
+    Verify a plain text password against a stored hash.
 
     Args:
-        stored_hash (str): Previously generated hash from encrypt_password()
-        password (str): Plain text password to verify
+        stored_hash (str): Hashed password from the database (from encrypt_password())
+        password (str): Plain text password provided by the user
 
     Returns:
-        bool: True if password matches, False otherwise
-    """
-    return check_password_hash(stored_hash, password)
+        bool: True if the password matches the hash, False otherwise
+              (including if an error occurs during verification)
 
+    Note:
+        - Errors during verification are logged but not raised.
+        - Invalid or malformed hashes are treated as mismatches (secure default).
+    """
+    if not stored_hash or not password:
+        logger.warning("Empty stored_hash or password provided to verify_password")
+        return False
+
+    try:
+        return check_password_hash(stored_hash, password)
+
+    except Exception as e:
+        logger.error("Error verifying password hash: %s", e)
+        return False
 
 # Function to valid username, email and password
 
@@ -54,20 +83,44 @@ def validate_username(username: str) -> bool:
     """Basic username validation: alphanumeric + underscore, 3-20 chars"""
     return bool(username and re.match(r"^[a-zA-Z0-9_]{3,20}$", username))
 
-
-def validate_password(cls,v: str) -> bool:
-    # Check for 8+ chars, uppercase, lowercase, digit, and special character
+def strong_password_validator(field_name: str = "password"):
+    """
+    Factory function that returns a Pydantic field_validator
+    for enforcing strong password rules.
+    
+    Usage:
+        validate_password = strong_password_validator()
+        # or for a different field name:
+        validate_new_password = strong_password_validator("new_password")
+    """
     special_chars = set(string.punctuation)
-    if (
-        len(v) < 8
-        or not any(c.isupper() for c in v)
-        or not any(c.islower() for c in v)
-        or not any(c.isdigit() for c in v)
-        or not any(c in special_chars for c in v)
-    ):
-        return False
-    return True
 
+    @field_validator(field_name)
+    @classmethod
+    def _validate_password(cls, v: str) -> str:
+        if not isinstance(v, str):
+            raise ValueError("Password must be a string")
+
+        errors = []
+        if not any(c.isupper() for c in v):
+            errors.append("one uppercase letter")
+        if not any(c.islower() for c in v):
+            errors.append("one lowercase letter")
+        if not any(c.isdigit() for c in v):
+            errors.append("one digit")
+        if not any(c in special_chars for c in v):
+            errors.append("one special character")
+
+        if errors:
+            # Join with "and" for better readability on the last item
+            if len(errors) > 1:
+                errors[-1] = "and " + errors[-1]
+            message = ", ".join(errors)
+            raise ValueError(f"Password must contain {message}")
+
+        return v
+
+    return _validate_password
 
 def validate_email(email: str) -> bool:
     patter = r"^\w+@\w+\.\w+$"
@@ -80,79 +133,137 @@ def validate_email(email: str) -> bool:
 
 
 def generate_otp(length: int = 6) -> str:
+    """
+    Generate a random numeric OTP of specified length.
+    """
+    if length <= 0:
+        logger.error("Invalid OTP length requested: %s", length)
+        raise ValueError("OTP length must be positive")
     return "".join(random.choices(string.digits, k=length))
 
-
-def send_otp_to_user(to_email: str, otp: str = None) -> str:
+def send_otp_to_user(to_email: str, otp: str) -> bool:
     """
-    Send a 6-digit OTP to the given email (plain text, minimal & clean).
+    Send a 6-digit OTP via email using Gmail SMTP.
 
     Args:
-        to_email (str): Recipient's email
-        otp (str, optional): Custom OTP. If None, generates a random one.
+        to_email (str): Recipient email address
+        otp (str): The OTP to send
 
     Returns:
-        str: The OTP that was sent
+        bool: True if email sent successfully, False otherwise
     """
+    if not settings.mail or not settings.mail_password:
+        logger.error("Email credentials not configured in settings")
+        return False
 
-    sender = settings.mail 
-    password = settings.mail_password  
+    sender = settings.mail
+    password = settings.mail_password
 
     msg = EmailMessage()
     msg["From"] = sender
     msg["To"] = to_email
     msg["Subject"] = "Your verification code"
-    msg.set_content(f"Your verification code is {otp}\n\nIt expires in 5 minutes.")
+    msg.set_content(
+        f"Your verification code is {otp}\n\n"
+        "It expires in 5 minutes.\n"
+        "Do not share this code with anyone."
+    )
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-        server.login(sender, password)
-        server.send_message(msg)
-    return True
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(sender, password)
+            server.send_message(msg)
+        return True
 
+    except smtplib.SMTPAuthenticationError:
+        logger.error("Failed to authenticate with Gmail SMTP (invalid credentials)")
+        return False
+    except smtplib.SMTPRecipientsRefused:
+        logger.error("Recipient email rejected: %s", to_email)
+        return False
+    except smtplib.SMTPServerDisconnected:
+        logger.error("SMTP server disconnected unexpectedly")
+        return False
+    except Exception as e:
+        logger.exception("Unexpected error sending OTP email to %s: %s", to_email, e)
+        return False
 
 def sendOtp(email: str, expiry_seconds: int = 300) -> bool:
     """
-    Generate and store OTP in Redis with expiry
-    Returns the OTP (for testing or logging – never send in prod logs!)
+    Generate OTP, store in Redis with expiry, and send via email.
+
+    Args:
+        email (str): User's email
+        expiry_seconds (int): OTP validity duration
+
+    Returns:
+        bool: True if OTP generated, stored, and sent successfully
     """
     try:
         otp = generate_otp()
         key = f"otp:{email}"
-        redis_client = connect_to_redis()
-        redis_client.set(key, otp, ex = expiry_seconds)
-        send_otp_to_user(email, otp)
-    except redis.RedisError as e:
-            print(f"Redis error for {email}: {e}")
-            return False
-    except Exception as e:
-        print(f"Failed to send OTP: {e}")
-        return False
-    return True
 
+        redis_client = connect_to_redis()
+        redis_client.set(key, otp, ex=expiry_seconds)
+
+        success = send_otp_to_user(email, otp)
+        if success:
+            return True
+        else:
+            # Clean up Redis if email failed
+            try:
+                redis_client.delete(key)
+            except:
+                pass
+            logger.warning("OTP stored but email failed to send for %s", email)
+            return False
+
+    except redis.RedisError as e:
+        logger.error("Redis error while storing OTP for %s: %s", email, e)
+        return False
+    except Exception as e:
+        logger.exception("Unexpected error in sendOtp for %s: %s", email, e)
+        return False
 
 def verify_user_otp(email: str, entered_otp: str) -> bool:
     """
-    Verify OTP and delete it immediately on success (one-time use)
+    Verify entered OTP against stored value in Redis.
+    Deletes OTP on success (one-time use) or if invalid/expired.
+
+    Returns:
+        bool: True only if OTP matches and is valid
     """
-    redis_client = connect_to_redis()
-    key = f"otp:{email}"
-    stored_otp = redis_client.get(key)
+    try:
+        redis_client = connect_to_redis()
+        key = f"otp:{email}"
+        stored_otp_bytes = redis_client.get(key)
 
-    if stored_otp is None:
-        print(f"[FAILED] OTP expired or not found for {email}")
+        if stored_otp_bytes is None:
+            logger.info("OTP verification failed: expired or not found for %s", email)
+            return False
+
+        stored_otp = stored_otp_bytes.decode('utf-8') if isinstance(stored_otp_bytes, bytes) else stored_otp_bytes
+
+        if stored_otp == entered_otp.strip():
+            redis_client.delete(key)
+            return True
+        else:
+            logger.info("Invalid OTP entered for %s", email)
+            # Optional: delete on too many failures? Rate limit elsewhere.
+            return False
+
+    except redis.RedisError as e:
+        logger.error("Redis error during OTP verification for %s: %s", email, e)
         return False
-
-    if stored_otp == entered_otp.strip():
-        redis_client.delete(key)  # One-time use
-        print(f"[SUCCESS] OTP verified for {email}")
-        return True
-    else:
-        print(f"[FAILED] Invalid OTP for {email}")
+    except Exception as e:
+        logger.exception("Unexpected error verifying OTP for %s: %s", email, e)
         return False
-
+    finally:
+        # Optional: always clean up on verification attempt?
+        # Not recommended — allows replay if not deleted on success
+        pass
 
 # Function for user relate operations
-
 
 def update_password(email: str, new_password) -> bool:
     """
@@ -321,7 +432,6 @@ def add_user_expense(expense_details: Dict[str, Any]) -> bool:
         logging.error(f"Failed to add expense for user {user_email}: {str(e)}")
         raise RuntimeError("Failed to save expense to database") from e
 
-
 def get_user_expense(email: str) -> List[Dict]:
     """
     Retrieve all expenses for a user identified by their email address from the database.
@@ -350,7 +460,6 @@ def get_user_expense(email: str) -> List[Dict]:
         raise RuntimeError(
             f"Database error while fetching expenses for user '{email}'"
         ) from e
-
 
 def get_user_curr_year_expense(email: str) -> int:
     db = get_db()
@@ -391,7 +500,6 @@ def get_user_expenses_by_date_range(email: str, startDate: datetime, endDate: da
     expenses = list(collection.find(query,{"_id":0,"email":0}))
 
     return expenses
-
 
 def get_username_for_rate_limit():
     username = request.form.get("username") or request.form.get("email") or "unknown"

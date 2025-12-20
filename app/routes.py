@@ -2,7 +2,7 @@ from app.utils import*
 from app.oauth2 import create_access_token
 from app.decorators import login_required, require_api_key
 from app.extension import limiter
-from app.schemas import UserCredential, UserCreate
+from app.schemas import*
 
 from flask import jsonify, request, make_response, Blueprint
 from flask_pydantic import validate
@@ -42,43 +42,44 @@ def signin(form:UserCredential):
         # expires=timedelta(days=7),
         path="/",
         httponly=True,
-        secure=False,
-        samesite="none",
+        secure=True,
+        samesite="LAX",
     )
     return resp
 
 @auth.route("/reset_password", methods=["PUT"])
 @login_required
-def reset_password(curr_user):
-    if not request.json:
-        return {"message": "Request must contain json"}, 400
-    data = request.get_json()
-    if not data or data == {}:
-        return {"message": "Request cannot be empty"}, 400
+@validate(body=UpdatePassword)
+def reset_password(curr_user, body:UpdatePassword):
+    # if not request.json:
+        # return {"message": "Request must contain json"}, 400
+    # data = request.get_json()
+    # if not data or data == {}:
+        # return {"message": "Request cannot be empty"}, 400
 
-    old_password = data.get("old_password")
-    new_password = data.get("new_password")
+    # old_password = data.get("old_password")
+    # new_password = data.get("new_password")
 
-    if not old_password or not new_password:
-        return jsonify({"message": "old and new password required"}), 400
+    # if not old_password or not new_password:
+        # return jsonify({"message": "old and new password required"}), 400
 
-    if not validate_password(new_password):
-        return (
-            jsonify(
-                {
-                    "message": "Password must be 8+ chars with at least one uppercase, one lowercase, one digit, and one special character"
-                }
-            ),
-            400,
-        )
+    # if not validate_password(new_password):
+    #     return (
+    #         jsonify(
+    #             {
+    #                 "message": "Password must be 8+ chars with at least one uppercase, one lowercase, one digit, and one special character"
+    #             }
+    #         ),
+    #         400,
+    #     )
 
     if not curr_user:
         return jsonify({"message": "Unable to process"}), 400
 
-    if not verify_user(curr_user, old_password):
+    if not verify_user(curr_user, body.old_password):
         return jsonify({"message": "Password not matched"}), 404
 
-    if not update_password(curr_user, new_password):
+    if not update_password(curr_user, body.new_password):
         return jsonify({"message": "Details not found"}), 404
 
     return jsonify({"message": "password updated"}), 200
@@ -102,28 +103,34 @@ def signup(body:UserCreate):
 
 
 @auth.route("/forogt_password")
-def forgot_password():
-    if not request.json:
-        return jsonify({"message": "request cannot be empty"}), 400
-    data = request.get_json()
-    email = data.get("email")
-    new_password = data.get("new_password")
+@require_api_key
+@validate(body=FogotPassword)
+def forgot_password(body:FogotPassword):
+    # if not request.json:
+        # return jsonify({"message": "request cannot be empty"}), 400
+    # data = request.get_json()
+    # email = data.get("email")
+    # new_password = data.get("new_password")
 
-    if not email or not new_password:
-        return jsonify({"message": "request must contain email or new password"}), 400
-    if not validate_email(email):
-        return jsonify({"message": "Invalid email format"}), 400
-    if not validate_password(new_password):
-        return jsonify({"message": "Invalid password format"}), 400
-    if not user_exists(email):
+    # if not email or not new_password:
+        # return jsonify({"message": "request must contain email or new password"}), 400
+    # if not validate_email(email):
+        # return jsonify({"message": "Invalid email format"}), 400
+    # if not (new_password):
+        # return jsonify({"message": "Invalid password format"}), 400
+    is_valid_otp = verify_user_otp(body.email, body.opt)
+    if not is_valid_otp:
+        return jsonify({"message":"Incorrect OTP"}),400
+    if not user_exists(body.email):
         return jsonify({"message": "Invalid credentials"}), 404
-    if not update_password(email, new_password):
+    if not update_password(body.email, body.new_password):
         return jsonify({"error": "Occured"}), 500
 
     return jsonify({"message": "password updated"}), 200
 
 
 @auth.route("/logout", methods=["POST"])
+@login_required
 def logout():
     resp = make_response(jsonify({"message": "Logged out successfully"}))
 
@@ -134,21 +141,8 @@ def logout():
 
     return resp, 200
 
-    if not request.json:
-        return jsonify({"message": "request cannot be empty, OTP is required"}), 400
-    data = request.get_json()
-    otp = data.get("otp")
-
-    if not otp:
-        return jsonify({"message": "OTP is required"}), 400
-    if not utils.verify_otp(email, otp):
-        return jsonify({"message": "Inccorect OTP"}), 400
-    if not utils.verify_user_mail(email):
-        return jsonify({"message": "Internval server error"}), 500
-    return jsonify({"message": "OTP verified succefully"}), 200
-
-
 @auth.route("/send_otp", methods=["POST"])
+@require_api_key
 def send_otp():
     if not request.json:
         return jsonify({"message": "request cannot be empty"}), 400
@@ -169,25 +163,6 @@ def send_otp():
     if not sendOtp(email):
         return jsonify({"message": "unable able to send otp, please try later"}), 500
     return jsonify({"message": "OPT snet"}), 200
-
-
-# @auth.route("/verify_otp", methods=["POST"])
-# def verify_otp():
-#     if not request.json:
-#         return jsonify({"message": "request must contain json"}), 400
-#     data = request.get_json()
-#     if not data:
-#         return jsonify({"message": "json cannot be empty"}), 400
-#     otp = data.get("otp")
-#     email = data.get("email")
-
-#     if not otp or not email:
-#         return jsonify({"message": "otp or email missing"}), 400
-#     if not isinstance(otp, str) or len(otp) != 6:
-#         return jsonify({"message": "Ivalid otp"}), 400
-#     if not utils.verify_user_otp(email, otp):
-#         return jsonify({"message": "incorrect otp"}), 400
-#     return jsonify({"message": "correct"}), 200
 
 
 expense = Blueprint('expense', __name__, url_prefix='/expenses')
