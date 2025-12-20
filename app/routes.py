@@ -20,7 +20,7 @@ auth = Blueprint("auth", __name__, url_prefix="/auth")
 @validate(form=UserCredential)
 def signin(form:UserCredential):
     
-    if not verify_user(form.email, form.password):
+    if not verify_user(form.email, form.password.get_secret_value()):
         return jsonify({"message": "Invalid credentials"}), 401
 
     try:
@@ -76,7 +76,7 @@ def reset_password(curr_user, body:UpdatePassword):
     if not curr_user:
         return jsonify({"message": "Unable to process"}), 400
 
-    if not verify_user(curr_user, body.old_password):
+    if not verify_user(curr_user, body.old_password.get_secret_value()):
         return jsonify({"message": "Password not matched"}), 404
 
     if not update_password(curr_user, body.new_password):
@@ -104,8 +104,8 @@ def signup(body:UserCreate):
 
 @auth.route("/forogt_password")
 @require_api_key
-@validate(body=FogotPassword)
-def forgot_password(body:FogotPassword):
+@validate(body=ForgotPassword)
+def forgot_password(body:ForgotPassword):
     # if not request.json:
         # return jsonify({"message": "request cannot be empty"}), 400
     # data = request.get_json()

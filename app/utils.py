@@ -83,61 +83,6 @@ def validate_username(username: str) -> bool:
     """Basic username validation: alphanumeric + underscore, 3-20 chars"""
     return bool(username and re.match(r"^[a-zA-Z0-9_]{3,20}$", username))
 
-def strong_password_validator(field_name: str = "password"):
-    special_chars = set(string.punctuation)
-
-    @field_validator(field_name)
-    def _validate_password(cls, v: Any, info: ValidationInfo) -> str:
-
-        errors = []
-
-        if not any(c.isupper() for c in v):
-            errors.append(
-                {
-                    "loc": (field_name,),
-                    "type": "uppercase_missing",
-                    "msg": "Must contain at least one uppercase letter",
-                    "input": v,
-                }
-            )
-
-        if not any(c.islower() for c in v):
-            errors.append(
-                {
-                    "loc": (field_name,),
-                    "type": "lowercase_missing",
-                    "msg": "Must contain at least one lowercase letter",
-                    "input": v,
-                }
-            )
-
-        if not any(c.isdigit() for c in v):
-            errors.append(
-                {
-                    "loc": (field_name,),
-                    "type": "digit_missing",
-                    "msg": "Must contain at least one digit",
-                    "input": v,
-                }
-            )
-
-        if not any(c in special_chars for c in v):
-            errors.append(
-                {
-                    "loc": (field_name,),
-                    "type": "special_missing",
-                    "msg": "Must contain at least one special character",
-                    "input": v,
-                }
-            )
-
-        if errors:
-            raise ValidationError(errors)
-
-        return v
-
-    return _validate_password
-
 def validate_email(email: str) -> bool:
     patter = r"^\w+@\w+\.\w+$"
     if re.match(patter, email):
