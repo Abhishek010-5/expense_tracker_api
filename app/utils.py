@@ -15,7 +15,7 @@ import redis
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 from flask import request
-from pydantic import field_validator, ValidationError
+from pydantic import field_validator, ValidationError, ValidationInfo
 
 logger = logging.getLogger(__name__)
 
@@ -84,19 +84,56 @@ def validate_username(username: str) -> bool:
     return bool(username and re.match(r"^[a-zA-Z0-9_]{3,20}$", username))
 
 def strong_password_validator(field_name: str = "password"):
-    """
-    Factory that returns a validator enforcing strong password rules using assert statements.
-    Pydantic automatically converts failed asserts into proper ValidationError entries.
-    """
     special_chars = set(string.punctuation)
 
     @field_validator(field_name)
-    @classmethod
-    def _validate_password(cls, v: str) -> str:
-        assert any(c.isupper() for c in v), "must contain at least one uppercase letter"
-        assert any(c.islower() for c in v), "must contain at least one lowercase letter"
-        assert any(c.isdigit() for c in v), "must contain at least one digit"
-        assert any(c in special_chars for c in v), "must contain at least one special character"
+    def _validate_password(cls, v: Any, info: ValidationInfo) -> str:
+
+        errors = []
+
+        if not any(c.isupper() for c in v):
+            errors.append(
+                {
+                    "loc": (field_name,),
+                    "type": "uppercase_missing",
+                    "msg": "Must contain at least one uppercase letter",
+                    "input": v,
+                }
+            )
+
+        if not any(c.islower() for c in v):
+            errors.append(
+                {
+                    "loc": (field_name,),
+                    "type": "lowercase_missing",
+                    "msg": "Must contain at least one lowercase letter",
+                    "input": v,
+                }
+            )
+
+        if not any(c.isdigit() for c in v):
+            errors.append(
+                {
+                    "loc": (field_name,),
+                    "type": "digit_missing",
+                    "msg": "Must contain at least one digit",
+                    "input": v,
+                }
+            )
+
+        if not any(c in special_chars for c in v):
+            errors.append(
+                {
+                    "loc": (field_name,),
+                    "type": "special_missing",
+                    "msg": "Must contain at least one special character",
+                    "input": v,
+                }
+            )
+
+        if errors:
+            raise ValidationError(errors)
+
         return v
 
     return _validate_password
