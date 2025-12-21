@@ -25,7 +25,7 @@ def signin(form:UserCredential):
         return jsonify({"message": "Invalid credentials"}), 401
 
     try:
-        token = create_access_token({"email": form.email})
+        token = create_access_token({"user_id": form.email})
     except Exception as e:
         print(f"Token creation failed: {e}")
         return jsonify({"message": "Internal server error"}), 500
