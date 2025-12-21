@@ -61,7 +61,7 @@ def create_app():
     
     @app.route('/favicon.ico')
     @app.route('/favicon.png')
-    @limiter.excempt
+    @limiter.exempt
     def favicon():
         try:
             return send_from_directory(app.static_folder, 'icons8-favicon-50.png')
