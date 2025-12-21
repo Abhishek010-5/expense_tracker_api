@@ -35,7 +35,6 @@ class UpdatePassword(BaseModel):
 class ForgotPassword(BaseModel):  
     email: EmailStr
     new_password: str
-    otp: str  
     
     _check_password_strength = field_validator("new_password")(password_strength)
 
@@ -48,3 +47,7 @@ class ExpenseCreate(BaseModel):
     payment_type:str
     description:str | None = None
     tag:str
+
+class VerifyOTP(BaseModel):
+    email:EmailStr
+    otp:Annotated[str,Field(min_length=6, max_length=6)]
