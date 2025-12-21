@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 import logging
 import os
@@ -58,6 +58,16 @@ def create_app():
     @limiter.exempt
     def root():
         return {"message": "API is working"}
+    
+    @app.route('/favicon.ico')
+    @app.route('/favicon.png')
+    @limiter.excempt
+    def favicon():
+        try:
+            return send_from_directory(app.static_folder, 'icons8-favicon-50.png')
+        except FileNotFoundError:
+            return '', 204  
+        
     # Register all error handlers in one line
     init_error_handlers(app)
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, SecretStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, SecretStr, field_validator, PositiveInt
 from typing import Annotated
 from app.validators import password_strength
 
@@ -38,3 +38,13 @@ class ForgotPassword(BaseModel):
     otp: str  
     
     _check_password_strength = field_validator("new_password")(password_strength)
+
+class SendOTP(BaseModel):
+    email:EmailStr
+    
+class ExpenseCreate(BaseModel):
+    amount:PositiveInt
+    payment_for:str
+    payment_type:str
+    description:str | None = None
+    tag:str

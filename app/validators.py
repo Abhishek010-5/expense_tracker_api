@@ -10,5 +10,5 @@ def password_strength(cls, v:str):
         not any(c.isdigit() for c in v) or
         not any(c in special_chars for c in v)
     ):
-        raise ValueError("Password must be 8+ chars with at least one uppercase, one lowercase, one digit, and one special character")
+        raise ValueError({"error":"Password must be 8+ chars with at least one uppercase, one lowercase, one digit, and one special character"})
     return v

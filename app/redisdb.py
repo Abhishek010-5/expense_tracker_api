@@ -1,5 +1,10 @@
 import redis
+import logging
+
 from app.config import settings
+
+logger = logging.getLogger(__name__)
+
 def connect_to_redis():
     """Establish connection to Redis server with username and password."""
     try:
@@ -12,14 +17,14 @@ def connect_to_redis():
         )
         # Test connection
         client.ping()
-        print("Successfully connected to Redis")
+        logger.debug("Successfully connected to Redis")
         return client
     except redis.AuthenticationError as e:
-        print(f"Authentication failed: {e}")
+        logger.error(f"Authentication failed: {e}")
         return None
     except redis.ConnectionError as e:
-        print(f"Failed to connect to Redis: {e}")
+        logger.error(f"Failed to connect to Redis: {e}")
         return None
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        logger.error(f"Unexpected error: {e}")
         return None

@@ -5,7 +5,7 @@ import random
 import smtplib
 from datetime import datetime
 from email.message import EmailMessage
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 from app.redisdb import connect_to_redis
 from app.database import get_db
@@ -280,8 +280,7 @@ def create_user(email: str, username: str, password: str) -> bool:
             "_id": email,
             "username": username,
             "password": hash_password,
-            "is_mail_verified": False,
-            "created_at": datetime.now(),  # Fixed: use datetime.now(), not datetime.today().now()
+            "created_at": datetime.now(),
         }
     ).acknowledged
 
@@ -340,22 +339,23 @@ def get_user(email: str) -> dict:
     try:
         db = get_db()
         collection = db["users"]
-        user_data = collection.find_one({"_id": email})
+        user_data = collection.find_one({"_id": email},{"username":1,"password":1})
     except Exception as e:
-        print("Exception: ", e)
+        logger.error("Exception: ", e)
         return None
     return user_data
 
 
-def verify_user(email: str, password: str) -> bool:
+def verify_user(email: str, password: str) -> Tuple[bool, str]:
 
     user = get_user(email)
 
     if not user or user == {}:
         return False
     system_password = user.get("password")
+    username = user.get("username")
 
-    return verify_password(system_password, password)
+    return (verify_password(system_password, password),username)
 
 
 # Expense related utility functions

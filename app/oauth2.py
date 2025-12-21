@@ -16,7 +16,7 @@ def create_access_token(data:dict):
 def verify_access_token(token:str, credentails_expectation):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        id:str = payload.get("user_id")
+        id:str = payload.get("email")
         
         if id is None:
             raise credentails_expectation
