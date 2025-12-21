@@ -103,7 +103,7 @@ def signup(body:UserCreate):
     return jsonify({"message": f"User created, username:{body.username}, email:{body.email}"}), 200
 
 
-@auth.route("/forgt_password",methods=["PUT"])
+@auth.route("/forgot_password",methods=["PUT"])
 @require_api_key
 @validate(body=ForgotPassword)
 def forgot_password(body:ForgotPassword):
