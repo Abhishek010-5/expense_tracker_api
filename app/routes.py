@@ -69,6 +69,9 @@ def reset_password(curr_user, body:UpdatePassword):
 @require_api_key
 @validate(body=UserCreate)
 def signup(body:UserCreate):
+    user_found = user_exists(body.email)
+    if user_found:
+        return jsonify({"message":"Invalid mail"}), HTTPStatus.CONFLICT
     if not create_user(body.email, body.username, body.password):
         return jsonify({"message": "error occured, Try somtime later"}), 500
     
