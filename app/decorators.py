@@ -34,6 +34,7 @@ def require_api_key(f):
     def decorated_function(*args, **kwargs):
         if  request.is_json:
             data = request.get_json()
+            data.pop('api_key')
         else:
             data = request.form
        
