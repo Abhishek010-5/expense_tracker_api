@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field, SecretStr, field_validator, PositiveInt
 from typing import Annotated
-from app.validators import password_strength
+from app.validators import StrongPassword
 
 Username = Annotated[
     str,
@@ -21,7 +21,7 @@ class UserCredential(BaseModel):
 class UserCreate(BaseModel):
     username: Username
     email: EmailStr
-    password: str
+    password: StrongPassword
 
     # _check_password_strength = field_validator("password")(password_strength)
     
