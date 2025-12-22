@@ -22,21 +22,20 @@ class UserCreate(BaseModel):
     username: Username
     email: EmailStr
     password: str
-    otp: str
 
-    _check_password_strength = field_validator("password")(password_strength)
+    # _check_password_strength = field_validator("password")(password_strength)
     
 class UpdatePassword(BaseModel):
     new_password: str
     old_password: SecretStr
     
-    _check_password_strength = field_validator("new_password")(password_strength)
+    # _check_password_strength = field_validator("new_password")(password_strength)
 
 class ForgotPassword(BaseModel):  
     email: EmailStr
     new_password: str
     
-    _check_password_strength = field_validator("new_password")(password_strength)
+    # _check_password_strength = field_validator("new_password")(password_strength)
 
 class SendOTP(BaseModel):
     email:EmailStr

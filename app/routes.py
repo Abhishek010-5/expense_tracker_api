@@ -69,13 +69,6 @@ def reset_password(curr_user, body:UpdatePassword):
 @require_api_key
 @validate(body=UserCreate)
 def signup(body:UserCreate):
-    
-    if user_exists(body.email):
-        return jsonify({"message":"users alredy exixts"}),400
-    
-    if not verify_user_otp(body.email,body.otp):
-        return jsonify({"message":"Incorrect otp"}),400
-
     if not create_user(body.email, body.username, body.password):
         return jsonify({"message": "error occured, Try somtime later"}), 500
     
