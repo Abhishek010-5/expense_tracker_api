@@ -29,27 +29,61 @@ def login_required(f):
     return decorated_function
 
 
-def require_api_key(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if  request.is_json:
-            data = request.get_json()
-        else:
-            data = request.form
+# def require_api_key(f):
+#     @wraps(f)
+#     def decorated_function(*args, **kwargs):
+#         if  request.is_json:
+#             data = request.get_json()
+#         else:
+#             data = request.form
        
         
-        provided_key = data.get('api_key')
-        if request.is_json:
-            data.pop('api_key')
+#         provided_key = data.get('api_key')
+#         if request.is_json:
+#             data.pop('api_key')
+#         if not provided_key:
+#             return jsonify({"error": "Missing API key"}), 401
+        
+#         if provided_key != settings.api_key:
+#             return jsonify({"error": "Invalid API key"}), 401
+        
+        
+        
+        
+#         return f(*args, **kwargs)
+    
+#     return decorated_function
+
+
+def require_api_key(f):
+    """
+    Decorator to protect routes with API key authentication.
+    Checks for API key in headers (preferred) or falls back to JSON body/form.
+    Priority: Headers 
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # 1. Preferred: Check headers (X-API-Key or Authorization: Bearer)
+        auth_header = request.headers.get("Authorization")
+        x_api_key = request.headers.get("X-API-Key")
+
+        provided_key = None
+
+        if x_api_key:
+            provided_key = x_api_key
+        elif auth_header and auth_header.startswith("Bearer "):
+            provided_key = auth_header.split(" ")[1]
+
+        # 2. Validate the key
+        expected_key = settings.api_key  
+
         if not provided_key:
             return jsonify({"error": "Missing API key"}), 401
-        
-        if provided_key != settings.api_key:
+
+        if provided_key != expected_key:
             return jsonify({"error": "Invalid API key"}), 401
-        
-        
-        
-        
+
+        # 3. All good — proceed
         return f(*args, **kwargs)
-    
+
     return decorated_function
