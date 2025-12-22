@@ -226,24 +226,41 @@ def verify_user_otp(email: str, entered_otp: str) -> bool:
 
 # Function for user relate operations
 
-def update_password(email: str, new_password) -> bool:
+def update_password(email: str, new_password: str) -> bool:
     """
-    Updates the user password
+    Updates the user's password in the database.
 
     Args:
-        username(str): username to update the user password
-        new_password(str): new password which the use want to update
-    returns:
-        bool: if the modified count is 1 returns true else false
-    """
-    db = get_db()
-    collection = db["users"]
-    hashed_new_password = encrypt_password(new_password)
-    modifiedCount = collection.update_one(
-        {"_id": email}, {"$set": {"password": hashed_new_password}}
-    ).modified_count
+        email (str): The user's email (used as _id in the users collection).
+        new_password (str): The new plain-text password to set.
 
-    return modifiedCount == 1
+    Returns:
+        bool: True if exactly one document was modified, False otherwise.
+
+    Raises:
+        Logs any exceptions that occur during the update process.
+    """
+    try:
+        db = get_db()
+        collection = db["users"]
+    
+        hashed_new_password = encrypt_password(new_password)
+        
+        result = collection.update_one(
+            {"_id": email},
+            {"$set": {"password": hashed_new_password}}
+        )
+
+        if result.modified_count == 1:
+            return True
+        else:
+            logger.warning("No user found or password unchanged for email: %s (modified_count: %d)", 
+                           email, result.modified_count)
+            return False
+
+    except Exception as e:
+        logger.error("Failed to update password for email: %s | Error: %s", email, str(e), exc_info=True)
+        return False
 
 
 def create_user(email: str, username: str, password: str) -> bool:
