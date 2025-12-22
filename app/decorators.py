@@ -34,12 +34,13 @@ def require_api_key(f):
     def decorated_function(*args, **kwargs):
         if  request.is_json:
             data = request.get_json()
-            data.pop('api_key')
         else:
             data = request.form
        
         
         provided_key = data.get('api_key')
+        if request.is_json:
+            data.pop('api_key')
         if not provided_key:
             return jsonify({"error": "Missing API key"}), 401
         
