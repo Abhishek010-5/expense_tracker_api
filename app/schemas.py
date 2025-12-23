@@ -23,6 +23,11 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: StrongPassword
     
+    @field_validator("username")
+    @classmethod
+    def normalize_username(cls,value:str)->str:
+        return value.strip().lower()
+    
 class UpdatePassword(BaseModel):
     new_password: StrongPassword
     old_password: SecretStr
