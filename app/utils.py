@@ -76,19 +76,6 @@ def verify_password(stored_hash: str, password: str) -> bool:
         logger.error("Error verifying password hash: %s", e)
         return False
 
-# Function to valid username, email and password
-
-
-def validate_username(username: str) -> bool:
-    """Basic username validation: alphanumeric + underscore, 3-20 chars"""
-    return bool(username and re.match(r"^[a-zA-Z0-9_]{3,20}$", username))
-
-def validate_email(email: str) -> bool:
-    patter = r"^\w+@\w+\.\w+$"
-    if re.match(patter, email):
-        return True
-    return False
-
 
 # Utility function for OTP
 
@@ -304,23 +291,6 @@ def create_user(email: str, username: str, password: str) -> bool:
     return res
 
 
-def verify_user_mail(email: str) -> bool:
-    """
-    This verify user mail after verifyigng the otp in the db so the users can login into the account
-
-    Args:
-        email(str): Email is by the verify email route to verify the email
-    Return:
-        bool: true if the status of the mail is updated else false
-    """
-    db = get_db()
-    collection = db["users"]
-    modified_count = collection.update_one(
-        {"_id": email}, {"$set": {"is_mail_verified": True}}
-    ).modified_count
-    return modified_count == 1
-
-
 def user_exists(email: str) -> bool:
     """
     Check if a user with the given email exists in the database.
@@ -342,7 +312,6 @@ def user_exists(email: str) -> bool:
     if not res:
         return False
     return True
-
 
 def get_user(email: str) -> dict:
     """
@@ -371,8 +340,8 @@ def verify_user(email: str, password: str) -> Tuple[bool, str]:
         return False
     system_password = user.get("password")
     username = user.get("username")
-
-    return (verify_password(system_password, password),username)
+    email = user.get("_id")
+    return (verify_password(system_password, password),username, email)
 
 
 # Expense related utility functions
