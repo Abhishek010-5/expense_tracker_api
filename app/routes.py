@@ -21,7 +21,7 @@ auth = Blueprint("auth", __name__, url_prefix="/auth")
 @validate(form=UserCredential)
 def signin(form:UserCredential):
     
-    is_valid_user, username = verify_user(form.email, form.password.get_secret_value())
+    is_valid_user, username, email = verify_user(form.email, form.password.get_secret_value())
     if not is_valid_user:
         return jsonify({"message": "Invalid credentials"}), 401
 
@@ -33,7 +33,7 @@ def signin(form:UserCredential):
 
     # Create response
     resp = make_response(
-        jsonify({"message": "Login successful", "username": username, "email":form.email}), 200
+        jsonify({"message": "Login successful", "username": username, "email":email}), 200
     )
 
     resp.set_cookie(
@@ -194,3 +194,9 @@ def get_curr_year_expense(curr_user):
 
     total_amount = expense[0].get("total_amount")
     return jsonify({"total_amount": total_amount})
+
+@auth.route("/get_profile", methods=["GET"])
+@require_api_key
+@login_required
+def get_profile(curr_user, username):
+    return jsonify({"email":curr_user, "username":username})
