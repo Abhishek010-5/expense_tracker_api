@@ -1,4 +1,4 @@
-from jose import jwt, JWTError, ExpiredSignatureError, I
+from jose import jwt, JWTError, ExpiredSignatureError
 from app.config import settings
 from datetime import datetime, timedelta
 
