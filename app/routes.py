@@ -8,6 +8,9 @@ from flask import jsonify, request, make_response, Blueprint
 from flask_pydantic import validate
 from datetime import datetime
 from http import HTTPStatus
+import logging
+
+logger = logging.getLogger(__name__)
 
 auth = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -23,17 +26,17 @@ def signin(form:UserCredential):
     
     is_valid_user, username, email = verify_user(form.email, form.password.get_secret_value())
     if not is_valid_user:
-        return jsonify({"message": "Invalid credentials"}), 401
+        return jsonify({"message": "Invalid credentials"}), HTTPStatus.UNAUTHORIZED
 
     try:
         token = create_access_token({"user_id": form.email})
     except Exception as e:
-        print(f"Token creation failed: {e}")
-        return jsonify({"message": "Internal server error"}), 500
+        logger.error(f"Token creation failed: {e}")
+        return jsonify({"message": "Internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
 
     # Create response
     resp = make_response(
-        jsonify({"message": "Login successful", "username": username, "email":email}), 200
+        jsonify({"message": "Login successful", "username": username, "email":email}), HTTPStatus.OK
     )
 
     resp.set_cookie(
@@ -53,16 +56,16 @@ def signin(form:UserCredential):
 @validate(body=UpdatePassword)
 def reset_password(curr_user, body:UpdatePassword):
     if not curr_user:
-        return jsonify({"message": "Unable to process"}), 400
+        return jsonify({"message": "Unable to process"}), HTTPStatus.BAD_REQUEST
     
     is_valid_old_password = verify_user(curr_user, body.old_password.get_secret_value())[0]
     if not is_valid_old_password:
-        return jsonify({"message": "Password not matched"}), 404
+        return jsonify({"message": "Password not matched"}), HTTPStatus.NOT_FOUND
 
     if not update_password(curr_user, body.new_password):
-        return jsonify({"message": "Details not found"}), 404
+        return jsonify({"message": "Details not found"}), HTTPStatus.NOT_FOUND
 
-    return jsonify({"message": "password updated"}), 200
+    return jsonify({"message": "password updated"}), HTTPStatus.OK
 
 
 @auth.route("/signup", methods=["POST"])
@@ -73,9 +76,9 @@ def signup(body:UserCreate):
     if user_found:
         return jsonify({"message":"Invalid mail"}), HTTPStatus.CONFLICT
     if not create_user(body.email, body.username, body.password):
-        return jsonify({"message": "error occured, Try somtime later"}), 500
+        return jsonify({"message": "error occured, Try somtime later"}), HTTPStatus.INTERNAL_SERVER_ERROR
     
-    return jsonify({"message": f"User created, username:{body.username}, email:{body.email}"}), 200
+    return jsonify({"message": f"User created, username:{body.username}, email:{body.email}"}), HTTPStatus.CREATED
 
 
 @auth.route("/forgot_password",methods=["POST"])
@@ -83,9 +86,9 @@ def signup(body:UserCreate):
 @validate(body=ForgotPassword)
 def forgot_password(body:ForgotPassword):   
     if not update_password(body.email, body.new_password):
-        return jsonify({"error": "Occured"}), 500
+        return jsonify({"error": "Occured"}), HTTPStatus.INTERNAL_SERVER_ERROR
 
-    return jsonify({"message": "password updated"}), 200
+    return jsonify({"message": "password updated"}), HTTPStatus.OK
 
 
 @auth.route("/logout", methods=["POST"])
@@ -97,7 +100,7 @@ def logout():
         key="access_token_cookie", path="/", httponly=True, secure=True, samesite="Lax"
     )
 
-    return resp, 200
+    return resp, HTTPStatus.OK
 
 @auth.route("/send_otp/<otp_for>", methods=["POST"])
 @require_api_key
@@ -121,7 +124,7 @@ def send_otp(body: SendOTP, otp_for: str = "signup"):
         return jsonify({"message": "User already exists"}), HTTPStatus.CONFLICT
 
     if otp_for == "forgot_password" and not user_found:
-        return jsonify({"message": "OTP sent successfully"}), HTTPStatus.OK
+        return jsonify({"message": "OTP sent successfully"}), HTTPStatus.BAD_REQUEST
 
     success = sendOtp(email)
     if not success:
@@ -141,8 +144,8 @@ def verify_otp(body:VerifyOTP):
     
     is_valid_otp = verify_user_otp(email, otp)
     if not is_valid_otp:
-        return jsonify({"message":"Incorrect OTP"}),400
-    return jsonify({"message":"successfull"}), HTTPStatus.OK
+        return jsonify({"message":"Incorrect OTP or OTP Expired"}),HTTPStatus.BAD_REQUEST
+    return jsonify({"message":"OTP verified"}), HTTPStatus.OK
 
 expense = Blueprint('expense', __name__, url_prefix='/expenses')
 
@@ -164,9 +167,9 @@ def add_expense(curr_user, body:ExpenseCreate):
     }
 
     if not add_user_expense(expense_detail):
-        return jsonify({"message": "An error occurred while adding expense"}), 500
+        return jsonify({"message": "An error occurred while adding expense"}), HTTPStatus.INTERNAL_SERVER_ERROR
 
-    return jsonify({"message": "Expense added successfully"}), 200
+    return jsonify({"message": "Expense added successfully"}), HTTPStatus.OK
 
 
 @expense.route("/get_expense", methods=["GET"])
@@ -176,12 +179,12 @@ def get_expense(curr_user):
     expenses = get_user_expense(curr_user)
 
     if expenses is None:
-        return jsonify({"message": "Failed to retrieve expenses"}), 500
+        return jsonify({"message": "Failed to retrieve expenses"}), HTTPStatus.INTERNAL_SERVER_ERROR
 
     if not expenses:
-        return jsonify({"data": []}), 200
+        return jsonify({"data": []}), HTTPStatus.OK
 
-    return jsonify({"data": expenses}), 200
+    return jsonify({"data": expenses}), HTTPStatus.OK
 
 
 @expense.route("/get_curr_year_expense", methods=["GET"])
@@ -190,13 +193,13 @@ def get_curr_year_expense(curr_user):
     expense = get_user_curr_year_expense(curr_user)
 
     if expense is None:
-        return jsonify({"message": "Failed to retrieve expenses"}), 500
+        return jsonify({"message": "Failed to retrieve expenses"}), HTTPStatus.INTERNAL_SERVER_ERROR
 
     total_amount = expense[0].get("total_amount")
-    return jsonify({"total_amount": total_amount})
+    return jsonify({"total_amount": total_amount}), HTTPStatus.OK
 
 @auth.route("/get_profile", methods=["GET"])
 @require_api_key
 @login_required
-def get_profile(curr_user, username):
-    return jsonify({"email":curr_user, "username":username})
+def get_profile(curr_user,username):
+    return jsonify({"email":curr_user, "username":username}), HTTPStatus.OK
