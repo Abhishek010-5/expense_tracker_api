@@ -2,6 +2,7 @@ from functools import wraps
 from flask import request, jsonify
 from jose import ExpiredSignatureError, JWTError
 import logging
+from http import HTTPStatus
 
 from app.oauth2 import verify_access_token
 from app.config import settings
@@ -13,19 +14,18 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         token = request.cookies.get('access_token')
         if not token:
-            return jsonify({"message": "Login required"}), 401
+            return jsonify({"message": "Login required"}), HTTPStatus.CONFLICT
         try:
             token_data = verify_access_token(token)
             kwargs['curr_user'] = token_data.get("email")
-            kwargs['username'] = token_data.get("username")
 
         except ExpiredSignatureError:
-            return jsonify({"message":"Token has expired"}),401
+            return jsonify({"message":"Token has expired"}),HTTPStatus.CONFLICT
         except JWTError:
-            return jsonify({"message":"Invalid token"}),401
+            return jsonify({"message":"Invalid token"}),HTTPStatus.CONFLICT
         except Exception as e:
             logger.error(f"Unexpected error during token verification: {e}")
-            return jsonify({"message": "Token verification failed"}), 401
+            return jsonify({"message": "Token verification failed"}), HTTPStatus.CONFLICT
         
         return f(*args, **kwargs)  
 
@@ -54,10 +54,10 @@ def require_api_key(f):
         expected_key = settings.api_key  
 
         if not provided_key:
-            return jsonify({"error": "Missing API key"}), 401
+            return jsonify({"error": "Missing API key"}), HTTPStatus.CONFLICT
 
         if provided_key != expected_key:
-            return jsonify({"error": "Invalid API key"}), 401
+            return jsonify({"error": "Invalid API key"}), HTTPStatus.CONFLICT
 
         return f(*args, **kwargs)
 
