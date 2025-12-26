@@ -201,5 +201,8 @@ def get_curr_year_expense(curr_user):
 @auth.route("/get_profile", methods=["GET"])
 @require_api_key
 @login_required
-def get_profile(curr_user,username):
+def get_profile(curr_user):
+    username = get_user_profile(curr_user)
+    if not username:
+        return jsonify({"message":"Profile not found"}), HTTPStatus.NOT_FOUND
     return jsonify({"email":curr_user, "username":username}), HTTPStatus.OK
