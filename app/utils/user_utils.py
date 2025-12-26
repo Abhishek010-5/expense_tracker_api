@@ -1,9 +1,9 @@
-from database import get_db
+from app.database import get_db
 
 import logging
 from typing import Tuple,Optional
 from datetime import datetime
-from utilsa.password_utils import encrypt_password, verify_password
+from .password_utils import encrypt_password, verify_password
 
 logger = logging.getLogger(__name__)
 
