@@ -41,7 +41,7 @@ def create_app():
     app.logger.info("Flask application initialized")
     app.logger.info(f"Running in {'Production (Vercel)' if os.getenv('VERCEL') else 'Development'} mode")
     
-    CORS(app)
+    CORS(app,origins="*")
     # Bind the limiter to the app AFTER creation
     limiter.init_app(app)
 
