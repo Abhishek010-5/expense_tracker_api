@@ -47,7 +47,7 @@ def signin(form:UserCredential):
         # expires=timedelta(days=7),
         path="/",
         httponly=True,
-        secure=True,
+        secure=False, # set this true after testing
         samesite="LAX",
     )
     return resp
