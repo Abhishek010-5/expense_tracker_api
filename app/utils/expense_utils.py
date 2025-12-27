@@ -108,32 +108,24 @@ def get_user_expenses_by_date_range(email: str, startDate: datetime, endDate: da
 
     return expenses
 
-def get_user_curr_week_expense(email:str)->List[dict]:
-    today = datetime.today().replace(hour=0,minute=0,second=0,microsecond=0)
-    
+def get_user_curr_week_expense(email: str) -> List[Dict]:
+    """
+    Retrieve daily expense totals for the current week (Monday to Sunday) for a given user.
+    ...
+    Raises:
+        pymongo.errors.PyMongoError: If database connection or query fails.
+    """
+    today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
     monday = today - timedelta(days=today.weekday())
-    sunday = monday + timedelta(days=6)
-    
+    next_monday = monday + timedelta(days=7)
+
     db = get_db()
     collection = db["expense"]
+
     pipeline = [
-        {
-            "$match": {
-                "email": email,
-                "date": {"$gte": monday, "$lte": sunday}
-            }
-        },
-        {
-            "$group": {
-                "_id": {
-                    "$dateTrunc": {"date": "$date", "unit": "day"}
-                },
-                "dailyTotal": {"$sum": "$amount"}
-            }
-        },
-        {
-            "$sort": {"_id": 1}  
-        }
+        {"$match": {"email": email, "date": {"$gte": monday, "$lt": next_monday}}},
+        {"$group": {"_id": {"$dateTrunc": {"date": "$date", "unit": "day"}}, "dailyTotal": {"$sum": "$amount"}}},
+        {"$sort": {"_id": 1}}
     ]
-    res = collection.aggregate(pipeline)
-    return res
+
+    return list(collection.aggregate(pipeline))
