@@ -9,6 +9,7 @@ from flask_pydantic import validate
 from datetime import datetime
 from http import HTTPStatus
 import logging
+from pymongo.errors import PyMongoError
 
 logger = logging.getLogger(__name__)
 
@@ -206,3 +207,38 @@ def get_profile(curr_user):
     if not username:
         return jsonify({"message":"Profile not found"}), HTTPStatus.NOT_FOUND
     return jsonify({"email":curr_user, "username":username}), HTTPStatus.OK
+
+@expense.route("/weekly", methods=["GET"])
+@require_api_key
+@login_required
+def by_week(curr_user):
+    try:
+        expenses = get_user_curr_week_expense(curr_user)
+        
+        
+        if expenses is None:
+            expenses = []  
+        
+        return jsonify({
+            "expenses": expenses, 
+            "total_count": len(expenses),
+            "period": "current_week"  
+        }), HTTPStatus.OK
+        
+    except PyMongoError as e:
+        logger.error(f"Database error for user {curr_user}: {str(e)}")
+        return jsonify({
+            "error": "Database error",
+            "message": "Failed to retrieve expenses due to a server issue"
+        }), HTTPStatus.INTERNAL_SERVER_ERROR
+
+    except Exception as e:
+        logger.error({
+            "error": "Failed to fetch weekly expenses",
+            "user_id": curr_user,
+            "exception": str(e)
+        })
+        return jsonify({
+            "error": "Internal server error",
+            "message": "Failed to retrieve weekly expenses"
+        }), HTTPStatus.INTERNAL_SERVER_ERROR
