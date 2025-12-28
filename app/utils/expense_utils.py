@@ -129,3 +129,49 @@ def get_user_curr_week_expense(email: str) -> List[Dict]:
     ]
 
     return list(collection.aggregate(pipeline))
+
+
+
+def get_user_monthly_avg_expense(email: str, month: int | None = None, year: int | None = None) -> float:
+    """
+    Get average expense for a specific month/year.
+    If month/year not provided → uses current month/year.
+    Returns 0.0 if no expenses in that month.
+    """
+    now = datetime.now()
+    
+    # Default to current month/year if not provided
+    target_year = year or now.year
+    target_month = month or now.month
+    
+    # Start of the month: day 1, time 00:00:00
+    start_of_month = datetime(target_year, target_month, 1)
+    
+    # Calculate end of the month:
+    # Go to day 1 of next month, then subtract 1 microsecond
+    if target_month == 12:
+        end_of_month = datetime(target_year + 1, 1, 1) - timedelta(microseconds=1)
+    else:
+        end_of_month = datetime(target_year, target_month + 1, 1) - timedelta(microseconds=1)
+    
+    pipeline = [
+        {
+            "$match": {
+                "email": email,
+                "date": {"$gte": start_of_month, "$lte": end_of_month}
+            }
+        },
+        {
+            "$group": {
+                "_id": None,
+                "monthlyAvgExpense": {"$avg": "$amount"}
+            }
+        }
+    ]
+    db = get_db()
+    collection = db['expense']
+    result = next(collection.aggregate(pipeline), None)
+    
+    return result["monthlyAvgExpense"] if result else 0.0
+
+    
