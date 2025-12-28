@@ -10,6 +10,7 @@ from datetime import datetime
 from http import HTTPStatus
 import logging
 from pymongo.errors import PyMongoError
+from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -242,3 +243,16 @@ def by_week(curr_user):
             "error": "Internal server error",
             "message": "Failed to retrieve weekly expenses"
         }), HTTPStatus.INTERNAL_SERVER_ERROR
+        
+@expense.get("/monthly-avg")
+@require_api_key
+@login_required
+def get_monthly_avg_expense_route(curr_user):
+    try:
+        query = MonthlyAvgQuery(**request.args)
+    except ValidationError as e:
+        return jsonify({"error": "Invalid parameters", "details": e.errors()}), HTTPStatus.BAD_REQUEST
+
+    average = get_user_monthly_avg_expense(email=curr_user, month=query.month, year=query.year)
+
+    return jsonify({"average_expense": average})
