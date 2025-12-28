@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field, SecretStr, field_validator, PositiveInt
-from typing import Annotated
+from typing import Annotated, Optional
 from app.validators import StrongPassword
 
 Username = Annotated[
@@ -49,3 +49,9 @@ class ExpenseCreate(BaseModel):
 class VerifyOTP(BaseModel):
     email:EmailStr
     otp:Annotated[str,Field(min_length=6, max_length=6)]
+
+
+
+class MonthlyAvgQuery(BaseModel):
+    month: Optional[int] = Field(None, ge=1, le=12, description="Month (1-12)")
+    year: Optional[int] = Field(None, ge=1900, le=2100, description="Year")
