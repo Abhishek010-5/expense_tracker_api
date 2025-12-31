@@ -256,3 +256,19 @@ def get_monthly_avg_expense_route(curr_user):
     average = get_user_monthly_avg_expense(email=curr_user, month=query.month, year=query.year)
 
     return jsonify({"average_expense": average})
+
+@expense.route("/transaction-summary", methods=["GET"])
+@require_api_key
+@login_required
+def transaction_summary(curr_user:str):
+    try:
+        query = TransactionSummaryQuery(**request.args)
+    except ValidationError as e:
+        return jsonify({"error": "Invalid parameters", "details": e.errors()}), HTTPStatus.BAD_REQUEST
+    summary = get_user_transaction_summary(
+        curr_user,
+        day=query.day,
+        month=query.month,
+        year=query.year
+    )
+    return summary
