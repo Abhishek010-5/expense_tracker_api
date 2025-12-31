@@ -2,7 +2,7 @@ from app.utils import*
 from app.oauth2 import create_access_token
 from app.decorators import login_required, require_api_key
 from app.extension import limiter
-from app.schemas import*
+from app.models import*
 
 from flask import jsonify, request, make_response, Blueprint
 from flask_pydantic import validate
