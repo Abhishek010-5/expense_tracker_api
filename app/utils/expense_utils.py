@@ -1,7 +1,13 @@
-from typing import Dict,Any,List
+from typing import Dict,Any,List,Optional
 from app.database import get_db
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+from app.utils.helpers.expense_helpers import (  
+    get_user_weekly_transactions,
+    get_user_monthly_transactions,
+    get_user_yearly_transactions,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -174,4 +180,48 @@ def get_user_monthly_avg_expense(email: str, month: int | None = None, year: int
     
     return result["monthlyAvgExpense"] if result else 0.0
 
-    
+def get_user_transaction_summary(
+    email: str,
+    day: Optional[int] = None,
+    month: Optional[int] = None,
+    year: Optional[int] = None
+) -> dict:
+    """
+    Accepts separate weekly, month, year as integers.
+    Builds target date intelligently.
+    """
+    now_utc = datetime.now(timezone.utc)
+    current_day = now_utc.day
+    current_month = now_utc.month
+    current_year = now_utc.year  
+
+    # Determine target date
+    target_year = year or current_year
+    target_month = month or current_month
+    target_day = day or current_day
+
+    # If any date part is provided, ensure year is set
+    if day is not None or month is not None:
+        if year is None:
+            target_year = current_year  # default to current year if partial date
+        # else: 
+            # raise ValueError("year is required when day or month is provided")
+
+    # Create timezone-aware datetime
+    try:
+        target_date = datetime(target_year, target_month, target_day, tzinfo=timezone.utc)
+    except ValueError as e:
+        raise ValueError(f"Invalid date: {target_day}/{target_month}/{target_year} — {str(e)}")
+
+    # Yearly override: if year provided alone, use current day/month but that year for yearly count
+    yearly_target = year or target_date.year
+
+    return {
+        "email": email,
+        "day": target_date.day,
+        "month": target_date.month,
+        "year": target_date.year,
+        "weekly_transactions": get_user_weekly_transactions(email, target_date),
+        "monthly_transactions": get_user_monthly_transactions(email, target_date),
+        "yearly_transactions": get_user_yearly_transactions(email, yearly_target),
+    }
