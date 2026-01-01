@@ -1,0 +1,126 @@
+from flask import Blueprint, jsonify, request
+from pydantic import ValidationError
+from pymongo.errors import PyMongoError
+from http import HTTPStatus
+from flask_pydantic import validate
+from datetime import datetime
+from app.utils.expense_utils import*
+from app.expense_api.models import*
+from app.decorators import login_required, require_api_key
+
+
+expense = Blueprint('expense', __name__, url_prefix='/expenses')
+
+@expense.route("/add_expense", methods=["POST"])
+@login_required
+@validate(body=ExpenseCreate)
+def add_expense(curr_user, body:ExpenseCreate):
+
+    curr_date = datetime.today().replace(hour=0, minute=0,second=0,microsecond=0)
+
+    expense_detail = {
+        "date": curr_date,
+        "email": curr_user,
+        "amount": body.amount,
+        "payment_type": body.payment_type,
+        "payment_for": body.payment_for,
+        "description":body.description,
+        "tag":body.tag
+    }
+
+    if not add_user_expense(expense_detail):
+        return jsonify({"message": "An error occurred while adding expense"}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+    return jsonify({"message": "Expense added successfully"}), HTTPStatus.OK
+
+
+@expense.route("/get_expense", methods=["GET"])
+@require_api_key
+@login_required
+def get_expense(curr_user):
+    expenses = get_user_expense(curr_user)
+
+    if expenses is None:
+        return jsonify({"message": "Failed to retrieve expenses"}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+    if not expenses:
+        return jsonify({"data": []}), HTTPStatus.OK
+
+    return jsonify({"data": expenses}), HTTPStatus.OK
+
+
+@expense.route("/get_curr_year_expense", methods=["GET"])
+@login_required
+def get_curr_year_expense(curr_user):
+    expense = get_user_curr_year_expense(curr_user)
+
+    if expense is None:
+        return jsonify({"message": "Failed to retrieve expenses"}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+    total_amount = expense[0].get("total_amount")
+    return jsonify({"total_amount": total_amount}), HTTPStatus.OK
+
+
+@expense.route("/weekly", methods=["GET"])
+@require_api_key
+@login_required
+def by_week(curr_user):
+    try:
+        expenses = get_user_curr_week_expense(curr_user)
+        
+        
+        if expenses is None:
+            expenses = []  
+        
+        return jsonify({
+            "expenses": expenses, 
+            "total_count": len(expenses),
+            "period": "current_week"  
+        }), HTTPStatus.OK
+        
+    except PyMongoError as e:
+        logger.error(f"Database error for user {curr_user}: {str(e)}")
+        return jsonify({
+            "error": "Database error",
+            "message": "Failed to retrieve expenses due to a server issue"
+        }), HTTPStatus.INTERNAL_SERVER_ERROR
+
+    except Exception as e:
+        logger.error({
+            "error": "Failed to fetch weekly expenses",
+            "user_id": curr_user,
+            "exception": str(e)
+        })
+        return jsonify({
+            "error": "Internal server error",
+            "message": "Failed to retrieve weekly expenses"
+        }), HTTPStatus.INTERNAL_SERVER_ERROR
+        
+@expense.get("/monthly-avg")
+@require_api_key
+@login_required
+def get_monthly_avg_expense_route(curr_user):
+    try:
+        query = MonthlyAvgQuery(**request.args)
+    except ValidationError as e:
+        return jsonify({"error": "Invalid parameters", "details": e.errors()}), HTTPStatus.BAD_REQUEST
+
+    average = get_user_monthly_avg_expense(email=curr_user, month=query.month, year=query.year)
+
+    return jsonify({"average_expense": average})
+
+@expense.route("/transaction-summary", methods=["GET"])
+@require_api_key
+@login_required
+def transaction_summary(curr_user:str):
+    try:
+        query = TransactionSummaryQuery(**request.args)
+    except ValidationError as e:
+        return jsonify({"error": "Invalid parameters", "details": e.errors()}), HTTPStatus.BAD_REQUEST
+    summary = get_user_transaction_summary(
+        curr_user,
+        day=query.day,
+        month=query.month,
+        year=query.year
+    )
+    return summary

@@ -4,7 +4,9 @@ import logging
 import os
 
 from app.config import settings
-from app.routes import auth, expense
+# from app.routes import auth, expense
+from app.user_api.routes import auth
+from app.expense_api.routes import expense
 from app.extension import limiter
 from app.errors import init_error_handlers
 
