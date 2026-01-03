@@ -6,7 +6,7 @@ from app.decorators import require_api_key, login_required
 from app.utils import*
 from app.user_api.models import* 
 from app.extension import limiter
-from app.oauth2 import create_access_token
+from app.oauth2 import create_access_token, verify_access_token
 
 
 logger = logging.getLogger(__name__)
@@ -154,3 +154,50 @@ def get_profile(curr_user):
     if not username:
         return jsonify({"message":"Profile not found"}), HTTPStatus.NOT_FOUND
     return jsonify({"email":curr_user, "username":username}), HTTPStatus.OK
+
+
+@auth.after_request
+def auto_refresh_access_token(response):
+    if request.path in ["/auth/signin"]:
+        return response
+
+    token = request.cookies.get("access_token")
+    if not token:
+        return response
+
+    payload = verify_access_token(token)   
+    if not payload or "exp" not in payload:
+        return response  
+
+    email = payload.get("user_id")
+    if not email:
+        return response
+
+    try:
+        expiry_time = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
+        now = datetime.now(timezone.utc)
+        remaining = (expiry_time - now).total_seconds()
+
+        if remaining <= 600:
+            new_token = create_access_token({"user_id": email})
+
+            new_response = make_response(response)
+            new_response.set_cookie(
+                key="access_token",
+                value=new_token,
+                max_age=7 * 24 * 60 * 60,
+                path="/",
+                httponly=True,
+                secure=False,  # ← change to True in production
+                samesite="Lax",
+            )
+
+            logger.info(f"Access token auto-refreshed for {email} (was {remaining//60} min left)")
+            # or: print(f"Access token refreshed for {email}")
+
+            return new_response
+
+    except Exception as e:
+        logger.warning(f"Auto-refresh failed: {e}", exc_info=True)
+
+    return response
