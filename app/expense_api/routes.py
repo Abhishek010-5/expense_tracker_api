@@ -16,7 +16,7 @@ expense = Blueprint('expense', __name__, url_prefix='/expenses')
 @validate(body=ExpenseCreate)
 def add_expense(curr_user, body:ExpenseCreate):
 
-    curr_date = datetime.today().replace(hour=0, minute=0,second=0,microsecond=0)
+    curr_date = datetime.today()
 
     expense_detail = {
         "date": curr_date,
@@ -124,3 +124,14 @@ def transaction_summary(curr_user:str):
         year=query.year
     )
     return summary
+
+@expense.route("/month-daily", methods=["GET"])
+@require_api_key
+@login_required
+def months_avg(curr_user):
+    try:
+        expense_details = get_curr_month_daily_expense(curr_user)
+    except ExpenseCreate as e:
+        logger.error({"error":str(e)})
+        return jsonify({"Internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    return expense_details

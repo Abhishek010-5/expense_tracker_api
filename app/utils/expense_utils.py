@@ -7,6 +7,7 @@ from app.utils.helpers.expense_helpers import (
     get_user_weekly_transactions,
     get_user_monthly_transactions,
     get_user_yearly_transactions,
+    get_daily_expense
 )
 
 logger = logging.getLogger(__name__)
@@ -136,8 +137,6 @@ def get_user_curr_week_expense(email: str) -> List[Dict]:
 
     return list(collection.aggregate(pipeline))
 
-
-
 def get_user_monthly_avg_expense(email: str, month: int | None = None, year: int | None = None) -> float:
     """
     Get average expense for a specific month/year.
@@ -225,3 +224,7 @@ def get_user_transaction_summary(
         "monthly_transactions": get_user_monthly_transactions(email, target_date),
         "yearly_transactions": get_user_yearly_transactions(email, yearly_target),
     }
+    
+def get_curr_month_daily_expense(email:str)->list[dict]:
+    expense_details = get_daily_expense(email)
+    return {"expense":expense_details}
