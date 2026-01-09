@@ -135,3 +135,19 @@ def months_avg(curr_user):
         logger.error({"error":str(e)})
         return jsonify({"Internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
     return expense_details
+
+@expense.route("/payment-methods-and-total", methods=["GET"])
+@require_api_key
+@login_required
+def payment_methods_and_total(curr_user):
+    if not curr_user:
+        return jsonify({"message":"user not found"}), HTTPStatus.NOT_FOUND
+    try:
+        expense_details = get_expense_payment_method_and_total(email=curr_user)
+        
+        if expense_details is None:
+            return jsonify({"message":"not details found or not detials exists"}), HTTPStatus.NOT_FOUND
+    except Exception as e:
+        logger.error({"error":str(e)})
+        return jsonify({"message":"Internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    return jsonify(expense_details)

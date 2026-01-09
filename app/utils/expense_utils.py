@@ -228,3 +228,18 @@ def get_user_transaction_summary(
 def get_curr_month_daily_expense(email:str)->list[dict]:
     expense_details = get_daily_expense(email)
     return {"expense":expense_details}
+
+def get_expense_payment_method_and_total(email:str)->list[dict]:
+    db = get_db()
+    collection = db["expense"]
+    year = datetime.now().year
+    curr_year_starts = datetime(year, 1, 1)
+    next_year_starts = datetime(year + 1, 1,1)
+    
+    pipeline = [
+        {"$match":{"email":email,"date":{"$gte":curr_year_starts,"$lt":next_year_starts}}},
+        {"$group":{"_id":"$payment_type","amountSpent":{"$sum":"$amount"}}}
+    ]
+    
+    expense_details = list(collection.aggregate(pipeline))
+    return {"expense_details":expense_details}
