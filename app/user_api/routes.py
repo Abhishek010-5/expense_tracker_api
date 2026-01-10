@@ -201,3 +201,16 @@ def auto_refresh_access_token(response):
         logger.warning(f"Auto-refresh failed: {e}", exc_info=True)
 
     return response
+
+@auth.route('/delete-user',methods=["DELETE"])
+@require_api_key
+@login_required
+def delete_user(curr_user):
+    if not curr_user:
+        return jsonify({"message":"User not found"}), HTTPStatus.NOT_FOUND
+    try:
+        res = delete_user_and_expense(email=curr_user)
+    except Exception as e:
+        logger.error({"error":str(e)})
+        return jsonify({"message":"Internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    return jsonify({"message":"User deleted"})

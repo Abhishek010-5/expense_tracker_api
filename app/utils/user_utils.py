@@ -147,4 +147,14 @@ def get_user_profile(email:str)->Optional[str | None ]:
     if not username:
         return None
     return username
+
+def delete_user_and_expense(email: str) -> bool:
+    db = get_db()
     
+    user_res = db["users"].delete_one({"_id": email})
+    if user_res.deleted_count == 0:
+        return False
+        
+    expense_res = db["expense"].delete_many({"email": email})
+    
+    return expense_res.deleted_count > 0   
