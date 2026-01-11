@@ -1,7 +1,8 @@
 from app.database import get_db
 
 import logging
-from typing import Tuple,Optional
+from werkzeug.datastructures import FileStorage
+from typing import Tuple,Optional, Dict
 from datetime import datetime
 from .password_utils import encrypt_password, verify_password
 
@@ -158,3 +159,61 @@ def delete_user_and_expense(email: str) -> bool:
     expense_res = db["expense"].delete_many({"email": email})
     
     return expense_res.deleted_count > 0   
+
+
+def insert_image_to_mongodb(file: FileStorage,email: str) -> str:
+    if not file or file.filename == '':
+        raise ValueError("No valid image file provided")
+
+    # Basic image validation
+    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+    
+    if (ext not in allowed_extensions or 
+        not file.content_type or 
+        not file.content_type.startswith('image/')):
+        raise ValueError("Invalid image format. Allowed: png, jpg, jpeg, gif, webp")
+
+    try:
+        # Connect to MongoDB
+        db = get_db()
+        collection = db["profile_pictures"]
+
+        # Read image bytes
+        image_bytes = file.read()
+
+        # Prepare document
+        document = {
+            "_id": email.strip(),
+            "filename": file.filename,
+            "content_type": file.content_type or "image/jpeg",
+            "data": image_bytes,
+            "size_bytes": len(image_bytes),
+            "uploaded_at": datetime.utcnow(),
+        }
+        result = collection.insert_one(document)
+        return str(result.inserted_id)
+
+    except Exception as e:
+        raise Exception(f"Failed to save image: {str(e)}")
+
+
+def get_profile_picture_by_email(email: str,) -> Optional[Dict]:
+    try:
+        
+        db = get_db()
+        collection = db["profile_pictures"]
+        doc = collection.find_one({"_id": email.strip()})
+        if not doc:
+            return None
+
+        return {
+            "data": doc["data"],
+            "content_type": doc["content_type"],
+            "filename": doc.get("filename", "profile.jpg"),
+            "size_bytes": doc.get("size_bytes"),
+            "uploaded_at": doc.get("uploaded_at")
+        }
+
+    except Exception as e:
+        raise Exception(f"Failed to get profile picture: {str(e)}")

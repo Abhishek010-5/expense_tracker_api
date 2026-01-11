@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, make_response
+from flask import Blueprint, jsonify, make_response, Response, send_file
 from flask_pydantic import validate
 from http import HTTPStatus
 
@@ -214,3 +214,48 @@ def delete_user(curr_user):
         logger.error({"error":str(e)})
         return jsonify({"message":"Internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
     return jsonify({"message":"User deleted"})
+
+@auth.route('/upload-profile-picture',methods=["POST"])
+@require_api_key
+@login_required
+def set_profile_picture(curr_user):
+    if 'image' not in request.files:
+        return jsonify({"error": "No image provided"}), HTTPStatus.BAD_REQUEST
+    file = request.files['image']
+    
+    try:
+        image_id = insert_image_to_mongodb(file=file, email=curr_user)
+        return jsonify({
+            "message": "Image uploaded successfully",
+            "email": curr_user
+        }), HTTPStatus.CREATED
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), HTTPStatus.BAD_REQUEST
+    except Exception as e:
+        logger.error({"erorr":str(e)})
+        return jsonify({"error": "Server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+@auth.route('/update-profile-picture', methods=["PUT"])
+@require_api_key
+@login_required
+def update_profile_picture():
+    pass
+
+@auth.route('/profile-picture',methods=["GET"])
+@require_api_key
+@login_required
+def serve_profile_picture(curr_user):
+    picture = get_profile_picture_by_email(email=curr_user)
+    
+    if not picture:
+        return send_file("static/default-avatar.png", mimetype="image/png")
+        
+
+    return Response(
+        picture["data"],
+        mimetype=picture["content_type"],
+        headers={
+            "Cache-Control": "public, max-age=3600",
+            "Content-Disposition": f'inline; filename="{picture["filename"]}"'
+        }
+    )
