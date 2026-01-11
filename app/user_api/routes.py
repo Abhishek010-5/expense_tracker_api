@@ -215,7 +215,7 @@ def delete_user(curr_user):
         return jsonify({"message":"Internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
     return jsonify({"message":"User deleted"})
 
-@auth.route('/upload-profile-picture',methods=["POST"])
+@auth.route('/profile-picture',methods=["POST"])
 @require_api_key
 @login_required
 def set_profile_picture(curr_user):
