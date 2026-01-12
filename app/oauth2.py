@@ -17,11 +17,10 @@ def verify_access_token(token:str)->dict:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email:str = payload.get("user_id")
-        username:str = payload.get("username")
-        
-        if id is None:
+    
+        if email is None:
             raise JWTError("Missing user_id in token")
-        token_data = {"email":email,"username":username}
+        token_data = {"email":email}
         
     except ExpiredSignatureError:
             raise ExpiredSignatureError("Token has expired")
