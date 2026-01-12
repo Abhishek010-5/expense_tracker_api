@@ -160,44 +160,6 @@ def delete_user_and_expense(email: str) -> bool:
     
     return expense_res.deleted_count > 0   
 
-
-def insert_image_to_mongodb(file: FileStorage,email: str) -> str:
-    if not file or file.filename == '':
-        raise ValueError("No valid image file provided")
-
-    # Basic image validation
-    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-    ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
-    
-    if (ext not in allowed_extensions or 
-        not file.content_type or 
-        not file.content_type.startswith('image/')):
-        raise ValueError("Invalid image format. Allowed: png, jpg, jpeg, gif, webp")
-
-    try:
-        # Connect to MongoDB
-        db = get_db()
-        collection = db["profile_pictures"]
-
-        # Read image bytes
-        image_bytes = file.read()
-
-        # Prepare document
-        document = {
-            "_id": email.strip(),
-            "filename": file.filename,
-            "content_type": file.content_type or "image/jpeg",
-            "data": image_bytes,
-            "size_bytes": len(image_bytes),
-            "uploaded_at": datetime.utcnow(),
-        }
-        result = collection.insert_one(document)
-        return str(result.inserted_id)
-
-    except Exception as e:
-        raise Exception(f"Failed to save image: {str(e)}")
-
-
 def get_profile_picture_by_email(email: str,) -> Optional[Dict]:
     try:
         
@@ -217,3 +179,94 @@ def get_profile_picture_by_email(email: str,) -> Optional[Dict]:
 
     except Exception as e:
         raise Exception(f"Failed to get profile picture: {str(e)}")
+    
+
+
+def save_profile_picture(file: FileStorage, email: str) -> bool:
+    """
+    Saves or updates profile picture with proper validation.
+    Returns True if operation succeeded.
+    Raises ValueError for client/input errors
+    Raises RuntimeError for server-side problems
+    """
+    # ── Basic file existence checks ───────────────────────────────
+    if not file:
+        raise ValueError("No file received")
+
+    if not file.filename or file.filename.strip() == '':
+        raise ValueError("No filename provided - file appears empty")
+
+    # ── Size validation (very important!) ─────────────────────────
+    MAX_ALLOWED_SIZE = 5 * 1024 * 1024  # 5 MB
+
+    # Get size without loading whole file into memory twice
+    file.seek(0, 2)           # move to end
+    file_size = file.tell()
+    file.seek(0)              # back to beginning
+
+    if file_size == 0:
+        raise ValueError("Uploaded file is empty")
+
+    if file_size > MAX_ALLOWED_SIZE:
+        raise ValueError(
+            f"File too large. Maximum allowed size is {MAX_ALLOWED_SIZE // 1024 // 1024}MB"
+        )
+
+    # ── Content-Type / MIME validation ────────────────────────────
+    allowed_mimetypes = {
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/webp',
+        'image/gif'
+    }
+
+    if not file.content_type:
+        raise ValueError("Cannot determine file content type")
+
+    if file.content_type not in allowed_mimetypes:
+        raise ValueError(
+            f"Invalid image format. Allowed types: JPEG, PNG, WebP, GIF"
+        )
+
+    # ── Very basic filename extension sanity check ────────────────
+    # (this is secondary — content-type is more important)
+    allowed_extensions = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if f".{ext}" not in allowed_extensions:
+        raise ValueError("File extension not allowed")
+
+    # ── Actual processing ─────────────────────────────────────────
+    try:
+        image_bytes = file.read()  # now safe to read
+
+        # Double-check (defensive)
+        if len(image_bytes) != file_size:
+            raise RuntimeError("File size changed during read operation")
+
+        db = get_db()
+        collection = db["profile_pictures"]
+
+        result = collection.update_one(
+            {"_id": email},
+            {
+                "$set": {
+                    "data": image_bytes,
+                    "content_type": file.content_type,
+                    "size_bytes": file_size,
+                    "filename": file.filename,
+                    "uploaded_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                }
+            },
+            upsert=True
+        )
+
+        return result.matched_count == 1 or result.upserted_id is not None
+
+    except ValueError:
+        raise  # re-raise client validation errors
+
+    except Exception as e:
+        # In real project → log full stack trace here
+        raise RuntimeError(f"Failed to save profile picture: {str(e)}")

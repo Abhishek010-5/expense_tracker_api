@@ -215,31 +215,27 @@ def delete_user(curr_user):
         return jsonify({"message":"Internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
     return jsonify({"message":"User deleted"})
 
-@auth.route('/profile-picture',methods=["POST"])
+@auth.route('/profile-picture',methods=["POST","PUT"])
 @require_api_key
 @login_required
 def set_profile_picture(curr_user):
     if 'image' not in request.files:
         return jsonify({"error": "No image provided"}), HTTPStatus.BAD_REQUEST
-    file = request.files['image']
-    
-    try:
-        image_id = insert_image_to_mongodb(file=file, email=curr_user)
-        return jsonify({
-            "message": "Image uploaded successfully",
-            "email": curr_user
-        }), HTTPStatus.CREATED
-    except ValueError as ve:
-        return jsonify({"error": str(ve)}), HTTPStatus.BAD_REQUEST
-    except Exception as e:
-        logger.error({"erorr":str(e)})
-        return jsonify({"error": "Server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
 
-@auth.route('/update-profile-picture', methods=["PUT"])
-@require_api_key
-@login_required
-def update_profile_picture():
-    pass
+    file = request.files['image']
+
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), HTTPStatus.BAD_REQUEST
+
+    try:
+        save_profile_picture(file, curr_user)
+        return jsonify({"message": "Profile picture updated successfully"}), HTTPStatus.OK
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), HTTPStatus.BAD_REQUEST
+    except Exception as e:
+        logger.exception("Profile picture upload failed")
+        return jsonify({"error": "Server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
 
 @auth.route('/profile-picture',methods=["GET"])
 @require_api_key
