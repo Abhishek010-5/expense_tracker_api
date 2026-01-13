@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, make_response, Response, send_file
 from flask_pydantic import validate
 from http import HTTPStatus
+import time
 
 from app.decorators import require_api_key, login_required
 from app.utils import*
@@ -245,14 +246,18 @@ def serve_profile_picture(curr_user):
     
     if not picture:
         return send_file("static/default-avatar.png", mimetype="image/png"), HTTPStatus.OK
-        
+
+    version = request.args.get('v')
+    if not version:
+        version = str(int(time.time())) 
 
     return Response(
         picture["data"],
         mimetype=picture["content_type"],
         headers={
-            "Cache-Control": "public, max-age=3600",
-            "Content-Disposition": f'inline; filename="{picture["filename"]}"'
+            "Cache-Control": "public, max-age=3600, stale-while-revalidate=60",
+            "Content-Disposition": f'inline; filename="{picture["filename"]}"',
+            "X-Image-Version": version
         }
     ), HTTPStatus.OK
     
