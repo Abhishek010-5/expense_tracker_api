@@ -270,3 +270,13 @@ def save_profile_picture(file: FileStorage, email: str) -> bool:
     except Exception as e:
         # In real project → log full stack trace here
         raise RuntimeError(f"Failed to save profile picture: {str(e)}")
+    
+def delete_user_profile_picture(email:str)->bool:
+    email = email.strip()
+    db = get_db()
+    collection = db["profile_pictures"]
+    
+    response = collection.delete_one({"_id":email}).deleted_count
+    
+    return True if response == 1 else False
+    

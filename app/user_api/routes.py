@@ -244,7 +244,7 @@ def serve_profile_picture(curr_user):
     picture = get_profile_picture_by_email(email=curr_user)
     
     if not picture:
-        return send_file("static/default-avatar.png", mimetype="image/png")
+        return send_file("static/default-avatar.png", mimetype="image/png"), HTTPStatus.OK
         
 
     return Response(
@@ -254,4 +254,18 @@ def serve_profile_picture(curr_user):
             "Cache-Control": "public, max-age=3600",
             "Content-Disposition": f'inline; filename="{picture["filename"]}"'
         }
-    )
+    ), HTTPStatus.OK
+    
+@auth.route('/profile-picture', methods=["DELETE"])
+@require_api_key
+@login_required
+def delete_profile_picture(curr_user):
+    try:
+        response = delete_user_profile_picture(email=curr_user)
+        
+        if not response:
+            return jsonify({"message":"unable to delete, Profile picture not foound"}), HTTPStatus.NOT_FOUND
+    except Exception as e:
+        logger.error({"error":f"Internval server error {str(e)}"})
+        return jsonify({"message":"Internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    return jsonify({"message":"Profile pricture deleted"}), HTTPStatus.OK
