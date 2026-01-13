@@ -4,10 +4,13 @@ from pymongo.errors import PyMongoError
 from http import HTTPStatus
 from flask_pydantic import validate
 from datetime import datetime
+import logging
+
 from app.utils.expense_utils import*
 from app.expense_api.models import*
 from app.decorators import login_required, require_api_key
 
+logger = logging.getLogger(__name__)
 
 expense = Blueprint('expense', __name__, url_prefix='/expenses')
 
@@ -27,9 +30,15 @@ def add_expense(curr_user, body:ExpenseCreate):
         "description":body.description,
         "tag":body.tag
     }
-
-    if not add_user_expense(expense_detail):
-        return jsonify({"message": "An error occurred while adding expense"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    try:
+        if not add_user_expense(expense_detail):
+            return jsonify({"message": "An error occurred while adding expense"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    except PyMongoError as dbe:
+        logger.error({"Database error":str(dbe)})
+        return jsonify({"message":"Internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    except Exception as e:
+        logger.error({"error":str(e)})
+        return jsonify({"message":"Internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
 
     return jsonify({"message": "Expense added successfully"}), HTTPStatus.OK
 
@@ -38,10 +47,14 @@ def add_expense(curr_user, body:ExpenseCreate):
 @require_api_key
 @login_required
 def get_expense(curr_user):
-    expenses = get_user_expense(curr_user)
-
-    if expenses is None:
-        return jsonify({"message": "Failed to retrieve expenses"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    try:
+        expenses = get_user_expense(curr_user)
+    except PyMongoError as dbe:
+        logger.error({"database error":str(dbe)})
+        return jsonify({"message":"internal servere erorr"})
+    except Exception as e:
+        logger.error({"error":str(e)})
+        return jsonify({"message":"internal sever error"}), HTTPStatus.INTERNAL_SERVER_ERROR
 
     if not expenses:
         return jsonify({"data": []}), HTTPStatus.OK
@@ -52,11 +65,14 @@ def get_expense(curr_user):
 @expense.route("/get_curr_year_expense", methods=["GET"])
 @login_required
 def get_curr_year_expense(curr_user):
-    expense = get_user_curr_year_expense(curr_user)
-
-    if expense is None:
-        return jsonify({"message": "Failed to retrieve expenses"}), HTTPStatus.INTERNAL_SERVER_ERROR
-
+    try:
+        expense = get_user_curr_year_expense(curr_user)
+    except PyMongoError as dbe:
+        logger.error({"databse error":str(dbe)})
+        return jsonify({"internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    except Exception as e:
+        logger.error({"error":str(e)})
+        return jsonify({"message":"internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
     total_amount = expense[0].get("total_amount")
     return jsonify({"total_amount": total_amount}), HTTPStatus.OK
 
@@ -104,9 +120,14 @@ def get_monthly_avg_expense_route(curr_user):
         query = MonthlyAvgQuery(**request.args)
     except ValidationError as e:
         return jsonify({"error": "Invalid parameters", "details": e.errors()}), HTTPStatus.BAD_REQUEST
-
-    average = get_user_monthly_avg_expense(email=curr_user, month=query.month, year=query.year)
-
+    try:
+        average = get_user_monthly_avg_expense(email=curr_user, month=query.month, year=query.year)
+    except PyMongoError as dbe:
+        logger.error({"database error":str(dbe)})
+        return jsonify({"message":"internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    except Exception as e:
+        logger.error({"error":str(e)})
+        return jsonify({"message":"Internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
     return jsonify({"average_expense": average})
 
 @expense.route("/transaction-summary", methods=["GET"])
@@ -117,12 +138,19 @@ def transaction_summary(curr_user:str):
         query = TransactionSummaryQuery(**request.args)
     except ValidationError as e:
         return jsonify({"error": "Invalid parameters", "details": e.errors()}), HTTPStatus.BAD_REQUEST
-    summary = get_user_transaction_summary(
-        curr_user,
-        day=query.day,
-        month=query.month,
-        year=query.year
-    )
+    try:
+        summary = get_user_transaction_summary(
+            curr_user,
+            day=query.day,
+            month=query.month,
+            year=query.year
+        )
+    except PyMongoError as dbe:
+        logger.error({"database error":str(dbe)})
+        return jsonify({"message":"internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    except Exception as e:
+        logger.error({"error":str(e)})
+        return jsonify({"message":"Internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
     return summary
 
 @expense.route("/month-daily", methods=["GET"])
