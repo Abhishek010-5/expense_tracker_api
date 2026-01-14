@@ -63,9 +63,12 @@ def get_user_expense(email: str) -> List[Dict]:
         collection = db["expense"]
         
         curr_date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-
-        # Find all expenses for the given email, excluding _id and email fields from output
-        expenses = list(collection.find({"$and":[{"email": email, "date":curr_date}]}, {"_id": 0, "email": 0}))
+        next_day = curr_date + timedelta(days=1)
+        
+        expenses = list(collection.find(
+            {"email": email, "date": {"$gte": curr_date, "$lt": next_day}},
+            {"_id": 0, "email": 0}
+        ))
 
         return expenses  # Returns [] if no documents found, which is clean and expected
 
