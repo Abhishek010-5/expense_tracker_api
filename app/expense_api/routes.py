@@ -25,10 +25,9 @@ def add_expense(curr_user, body:ExpenseCreate):
         "date": curr_date,
         "email": curr_user,
         "amount": body.amount,
-        "payment_type": body.payment_type,
-        "payment_for": body.payment_for,
+        "payment_method": body.payment_method,
+        "category": body.category,
         "description":body.description,
-        "tag":body.tag
     }
     try:
         if not add_user_expense(expense_detail):
@@ -179,3 +178,20 @@ def payment_methods_and_total(curr_user):
         logger.error({"error":str(e)})
         return jsonify({"message":"Internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR
     return jsonify(expense_details)
+
+@expense.route("/total-spent-amount-by-category",methods=["GET"])
+@require_api_key
+@login_required
+def total_spent_amount_by_category(curr_user):
+    try:
+        expense_summary = get_amount_and_category_wise_spended_amount(email=curr_user)
+        
+        if not expense_summary:
+            return jsonify({"message":"Amount not found"}), HTTPStatus.OK
+    except PyMongoError as dbe:
+        logger.error({"error":str(dbe)})
+        return jsonify({"message":"Database error occured"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    except Exception as e:
+        logger.error({'error':str(e)})
+        return jsonify({"message":"Internal server erorr"}), HTTPStatus.INTERNAL_SERVER_ERROR
+    return jsonify({"expense_summary":expense_summary}),HTTPStatus.OK

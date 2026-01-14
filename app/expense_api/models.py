@@ -7,10 +7,9 @@ Year = Annotated[int, Field(None, ge=2025, le=2030,description="Year (2000-2100)
 
 class ExpenseCreate(BaseModel):
     amount: PositiveInt
-    payment_for: str
-    payment_type: str
+    category: str
+    payment_method: str
     description: str | None = None
-    tag: str
     
 class MonthlyAvgQuery(BaseModel):
     month: Month

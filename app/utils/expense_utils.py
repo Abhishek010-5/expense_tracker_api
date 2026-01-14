@@ -246,3 +246,25 @@ def get_expense_payment_method_and_total(email:str)->list[dict]:
     
     expense_details = list(collection.aggregate(pipeline))
     return {"expense_details":expense_details}
+
+def get_amount_and_category_wise_spended_amount(email:str)->List[Dict]:
+    db = get_db()
+    collection = db["expense"]
+    
+    pipeline = [
+    {"$match": {"email":email}},
+    {"$group": {
+        "_id": "$category",
+        "totalSpent": {"$sum": "$amount"}
+    }},
+    {"$sort": {"totalSpent": -1}},
+    {"$project": {
+        "category": "$_id",
+        "totalSpent": 1,
+        "_id": 0
+    }}
+    ]
+    
+    expense_summary = list(collection.aggregate(pipeline=pipeline))
+    
+    return expense_summary
