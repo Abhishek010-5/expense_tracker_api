@@ -241,7 +241,7 @@ def get_expense_payment_method_and_total(email:str)->list[dict]:
     
     pipeline = [
         {"$match":{"email":email,"date":{"$gte":curr_year_starts,"$lt":next_year_starts}}},
-        {"$group":{"_id":"$payment_type","amountSpent":{"$sum":"$amount"}}}
+        {"$group":{"_id":"$payment_method","amountSpent":{"$sum":"$amount"}}}
     ]
     
     expense_details = list(collection.aggregate(pipeline))
