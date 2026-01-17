@@ -1,4 +1,5 @@
 from app.database import get_db
+from app.utils.image_utils import reduce_image_from_file
 
 import logging
 from werkzeug.datastructures import FileStorage
@@ -184,92 +185,62 @@ def get_profile_picture_by_email(email: str,) -> Optional[Dict]:
 
 def save_profile_picture(file: FileStorage, email: str) -> bool:
     """
-    Saves or updates profile picture with proper validation.
-    Returns True if operation succeeded.
-    Raises ValueError for client/input errors
-    Raises RuntimeError for server-side problems
+    Saves profile picture. 
+    - If > 100KB: Compresses/Reduces.
+    - If <= 100KB: Saves original bytes.
     """
-    # ── Basic file existence checks ───────────────────────────────
-    if not file:
-        raise ValueError("No file received")
-
-    if not file.filename or file.filename.strip() == '':
-        raise ValueError("No filename provided - file appears empty")
-
-    # ── Size validation (very important!) ─────────────────────────
+    # ── Size Constants ────────────────────────────────────────────
+    REDUCE_THRESHOLD = 100 * 1024       # 100 KB
     MAX_ALLOWED_SIZE = 5 * 1024 * 1024  # 5 MB
 
-    # Get size without loading whole file into memory twice
-    file.seek(0, 2)           # move to end
+    # Get size efficiently
+    file.seek(0, 2)
     file_size = file.tell()
-    file.seek(0)              # back to beginning
-
-    if file_size == 0:
-        raise ValueError("Uploaded file is empty")
+    file.seek(0)
 
     if file_size > MAX_ALLOWED_SIZE:
-        raise ValueError(
-            f"File too large. Maximum allowed size is {MAX_ALLOWED_SIZE // 1024 // 1024}MB"
-        )
+        raise ValueError(f"File exceeds 5MB limit.")
 
-    # ── Content-Type / MIME validation ────────────────────────────
-    allowed_mimetypes = {
-        'image/jpeg',
-        'image/jpg',
-        'image/png',
-        'image/webp',
-        'image/gif'
-    }
-
-    if not file.content_type:
-        raise ValueError("Cannot determine file content type")
-
+    # ── MIME validation (Keep this for security) ──────────────────
+    allowed_mimetypes = {'image/jpeg', 'image/png', 'image/webp'}
     if file.content_type not in allowed_mimetypes:
-        raise ValueError(
-            f"Invalid image format. Allowed types: JPEG, PNG, WebP, GIF"
-        )
+        raise ValueError(f"Unsupported format: {file.content_type}")
 
-    # ── Very basic filename extension sanity check ────────────────
-    # (this is secondary — content-type is more important)
-    allowed_extensions = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
-    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
-    if f".{ext}" not in allowed_extensions:
-        raise ValueError("File extension not allowed")
-
-    # ── Actual processing ─────────────────────────────────────────
     try:
-        image_bytes = file.read()  # now safe to read
+        # ── Conditional Processing ────────────────────────────────
+        if file_size > REDUCE_THRESHOLD:
+            # Only trigger CPU-intensive reduction if necessary
+            image_bytes = reduce_image_from_file(file)
+            final_size = len(image_bytes)
+        else:
+            # Direct read for small files to save resources
+            image_bytes = file.read()
+            final_size = file_size
 
-        # Double-check (defensive)
-        if len(image_bytes) != file_size:
-            raise RuntimeError("File size changed during read operation")
-
+        # ── Database Update ───────────────────────────────────────
         db = get_db()
-        collection = db["profile_pictures"]
-
-        result = collection.update_one(
+        now = datetime.now()
+        
+        result = db["profile_pictures"].update_one(
             {"_id": email},
             {
                 "$set": {
                     "data": image_bytes,
                     "content_type": file.content_type,
-                    "size_bytes": file_size,
+                    "size_bytes": final_size,
                     "filename": file.filename,
-                    "uploaded_at": datetime.utcnow(),
-                    "updated_at": datetime.utcnow()
-                }
+                    "updated_at": now
+                },
+                "$setOnInsert": {"uploaded_at": now}
             },
             upsert=True
         )
 
-        return result.matched_count == 1 or result.upserted_id is not None
-
-    except ValueError:
-        raise  # re-raise client validation errors
+        return result.acknowledged
 
     except Exception as e:
-        # In real project → log full stack trace here
-        raise RuntimeError(f"Failed to save profile picture: {str(e)}")
+        # Log the error internally here
+        raise RuntimeError("Internal error processing profile image")
     
 def delete_user_profile_picture(email:str)->bool:
     email = email.strip()
