@@ -66,9 +66,9 @@ def get_user_expense(email: str) -> List[Dict]:
         next_day = curr_date + timedelta(days=1)
         
         expenses = list(collection.find(
-            {"email": email, "date": {"$gte": curr_date, "$lt": next_day}},
-            {"_id": 0, "email": 0}
-        ))
+            {"email": email},             
+            {"_id": 0, "email": 0}        
+        ).sort("date", -1).limit(5))      
 
         return expenses  # Returns [] if no documents found, which is clean and expected
 
