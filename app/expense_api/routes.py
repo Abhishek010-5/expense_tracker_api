@@ -5,8 +5,10 @@ from http import HTTPStatus
 from flask_pydantic import validate
 from datetime import datetime
 import logging
+from smtplib import SMTPException
 
 from app.utils.expense_utils import*
+from app.utils.report_utils import send_report_via_smtp, generate_csv_report
 from app.expense_api.models import*
 from app.decorators import login_required, require_api_key
 
@@ -195,3 +197,33 @@ def total_spent_amount_by_category(curr_user):
         logger.error({'error':str(e)})
         return jsonify({"message":"Internal server erorr"}), HTTPStatus.INTERNAL_SERVER_ERROR
     return jsonify({"expense_summary":expense_summary}),HTTPStatus.OK
+
+@expense.route("/send-report", methods=["GET"])
+@require_api_key
+@login_required
+@validate(query=ReportCreate)
+def handle_report(curr_user, query: ReportCreate):
+    period = query.period 
+
+    try:
+        csv_content = generate_csv_report(curr_user, period)
+        
+        if not csv_content:
+            return jsonify({"message": "No expenses found for the selected period"}), HTTPStatus.NOT_FOUND
+
+        send_report_via_smtp(
+            recipient_email=curr_user, 
+            csv_content=csv_content, 
+            period_label=period.value
+        )
+        
+        return jsonify({"message": f"Report sent successfully to {curr_user}"}), HTTPStatus.OK
+
+    except SMTPException as e:
+        # Catches NotSupported, ConnectError, DataError, etc. in one block
+        logger.error(f"SMTP Error for {curr_user}: {str(e)}")
+        return jsonify({"message": "Email service temporarily unavailable"}), HTTPStatus.INTERNAL_SERVER_ERROR
+        
+    except Exception as e:
+        logger.error(f"Unexpected Error during report generation: {str(e)}")
+        return jsonify({"message": "Internal server error"}), HTTPStatus.INTERNAL_SERVER_ERROR

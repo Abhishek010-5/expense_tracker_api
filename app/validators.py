@@ -1,8 +1,8 @@
 import string
 from typing import Annotated
-
+from enum import Enum
 from pydantic_core import PydanticCustomError
-from pydantic.functional_validators import AfterValidator
+from pydantic.functional_validators import AfterValidator, BeforeValidator
 
 
 def validate_strong_password(v: str) -> str:
@@ -49,3 +49,19 @@ def validate_strong_password(v: str) -> str:
 
 
 StrongPassword = Annotated[str, AfterValidator(validate_strong_password)]
+
+class ReportPeriod(str, Enum):
+    THIRTY_DAYS = "30days"
+    QUARTER = "quarter"
+    HALFYEAR = "halfyear"
+    YEAR = "year"
+
+def normalize_duration(v: str) -> str:
+    if isinstance(v, str):
+        return v.lower().strip()
+    return v
+
+ValidPeriod = Annotated[
+    ReportPeriod, 
+    BeforeValidator(normalize_duration)
+]
