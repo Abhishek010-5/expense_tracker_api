@@ -29,7 +29,7 @@ def generate_csv_report(user_email: str, period: ReportPeriod):
     
     query = {
         "email": user_email,
-        "date": {"$gte": start_date, "$le":end_date} 
+        "date": {"$gte": start_date, "$lt":end_date} 
     }
     
     
