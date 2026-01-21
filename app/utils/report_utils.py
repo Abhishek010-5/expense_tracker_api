@@ -27,59 +27,15 @@ def generate_csv_report(user_email: str, period: ReportPeriod):
     start_date = datetime.now() - timedelta(days=days)
     end_date = datetime.now() + timedelta(days=1)
     
-    # query = {
-    #     "email": user_email,
-    #     "date": {"$gte": start_date} 
-    # }
+    query = {
+        "email": user_email,
+        "date": {"$gte": start_date, "$date":end_date} 
+    }
     
     
-    # projection = {"_id": 0, "description": 0, "email": 0}
-    # data = list(collection.find(query, projection))
-    
-    query = [
-    {
-        "$match": {
-            "email": user_email,
-            "date": {"$gte": start_date, "$lt": end_date}
-        }
-    },
-    {
-        "$group": {
-            "_id": { "$dateToString": { "format": "%Y-%m-%d", "date": "$date" } },
-            "dailyTotal": { "$sum": "$amount" },
-            "itemList": { 
-                "$push": { 
-                    "$concat": [
-                        "$category", " (", "$payment_method", ": ", { "$toString": "$amount" }, ")"
-                    ] 
-                } 
-            }
-        }
-    },
-    {
-        "$project": {
-            "_id": 0,
-            "day": "$_id",
-            "dailyTotal": 1,
-            # This joins the list into one string separated by commas
-            "items": {
-                "$reduce": {
-                    "input": "$itemList",
-                    "initialValue": "",
-                    "in": {
-                        "$cond": [
-                            { "$eq": ["$$value", ""] },
-                            "$$this",
-                            { "$concat": ["$$value", ", ", "$$this"] }
-                        ]
-                    }
-                }
-            }
-        }
-    },
-    { "$sort": { "day": 1 } }
-]
-    data = collection.aggregate(pipeline=query)
+    projection = {"_id": 0, "description": 0, "email": 0}
+    data = list(collection.find(query, projection))
+
     if not data:
         return None
 
