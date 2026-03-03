@@ -46,7 +46,7 @@ def create_app():
     CORS(
         app,
         supports_credentials=True,
-        origins=["http://localhost:3000", "http://localhost:5173"],
+        origins=["http://localhost:8000"],
         allow_headers=["Content-Type", "X-API-Key", "Authorization"]
         )
     # Bind the limiter to the app AFTER creation
